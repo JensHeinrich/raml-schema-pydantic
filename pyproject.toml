@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "raml-schema-pydantic"
+version = "0.1.0"
+description = "RAML (1.0) specification schema as pydantic class"
+authors = ["JensHeinrich <github.com/JensHeinrich>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^1.10.5"
+requests = "^2.28.2"
+regex = "^2022.10.31"
+mediatype = "^0.1.6"
+
+[tool.poetry.dev-dependencies]
+PyYAML = "^6.0"
+black = "^23.1.0"
+hypothesis = { extras = ["all"], version = "^6.68.2" }
+jsonref = "^1.1.0"
+pyyaml-include = { git = "https://github.com/JensHeinrich/pyyaml-include.git", rev = "67d050e1b6ffc294e305be93547f8e866370ba0a" }
+pydeps = "^1.11.1"
+lxml = "^4.9.2"
+bandit = "^1.7.5"
+mypy = "^1.1.1"
+types-PyYAML = "^6.0.12"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+
+[tool.isort]
+profile = "black"
