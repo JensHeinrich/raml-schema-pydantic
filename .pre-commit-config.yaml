@@ -39,3 +39,6 @@ repos:
     rev: v1.1.302
     hooks:
       - id: pyright
+        additional_dependencies:
+          - pydantic
+          - pytest
