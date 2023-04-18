@@ -40,6 +40,7 @@ repos:
           - mccabe
           - flake8-docstrings
           - Flake8-pyproject
+          - flake8-bugbear
 
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.302
