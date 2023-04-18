@@ -35,6 +35,12 @@ repos:
     rev: "6.0.0"
     hooks:
       - id: flake8
+        additional_dependencies:
+          - pep8-naming
+          - mccabe
+          - flake8-docstrings
+          - Flake8-pyproject
+
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.302
     hooks:
