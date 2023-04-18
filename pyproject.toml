@@ -10,6 +10,7 @@ pydantic = "^1.10.5"
 requests = "^2.28.2"
 regex = "^2022.10.31"
 mediatype = "^0.1.6"
+openapi-schema-pydantic = "^1.2.4"
 
 [tool.poetry.dev-dependencies]
 PyYAML = "^6.0"
@@ -25,6 +26,7 @@ types-PyYAML = "^6.0.12"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
+types-python-dateutil = "^2.8.19.12"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -35,3 +37,8 @@ addopts = ["--import-mode=importlib"]
 
 [tool.isort]
 profile = "black"
+
+[tool.flake8]
+extend-ignore = ['E501']
+classmethod_decorators = ['validator', 'root_validator', 'classmethod']
+max_complexity = 8
