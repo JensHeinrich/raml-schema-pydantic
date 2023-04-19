@@ -50,6 +50,12 @@ repos:
         additional_dependencies:
           - pydantic
           - pytest
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: "v1.2.0"
+    hooks:
+      - id: mypy
+
   # Source: https://medium.com/analytics-vidhya/essential-developer-tools-for-improving-your-python-code-71616254134b
   # Adapted for use with poetry
   - repo: local
