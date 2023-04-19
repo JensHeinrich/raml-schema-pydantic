@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING
 
 from dateutil import parser
 from pydantic import Field
-from pydantic.fields import ModelField
-from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from pydantic.fields import ModelField
     from pydantic.typing import CallableGenerator
+    from typing_extensions import Self
 
 
 from .._type_dict import TYPES

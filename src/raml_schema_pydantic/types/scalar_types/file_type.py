@@ -12,9 +12,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import ConstrainedBytes
 from pydantic import Field
-from pydantic.fields import ModelField
 from pydantic.types import _registered
-from typing_extensions import Self
 
 from ...MediaType import MediaType
 from .._type_dict import TYPES
@@ -22,6 +20,8 @@ from ..any_type import AnyType
 
 if TYPE_CHECKING:
     from pydantic.typing import CallableGenerator
+    from typing_extensions import Self
+    from pydantic.fields import ModelField
 
 
 logger = logging.getLogger(__name__)

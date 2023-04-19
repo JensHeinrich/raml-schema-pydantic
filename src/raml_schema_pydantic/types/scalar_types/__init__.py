@@ -1,10 +1,10 @@
 """Module for RAML types."""
 from typing import List
 from typing import Type
+from typing import TYPE_CHECKING
 from typing import TypeAlias
 
 from pydantic import BaseModel
-from typing_extensions import Self
 
 from .._IType import IType
 from ..any_type import AnyType
@@ -18,6 +18,9 @@ from .integer_type import IntegerType
 from .nil_type import NilType
 from .number_type import NumberType
 from .string_type import StringType
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 ScalarType: TypeAlias = (
     NumberType  # number,

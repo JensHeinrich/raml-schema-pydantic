@@ -5,16 +5,19 @@ from typing import Any
 from typing import Literal
 from typing import Optional
 from typing import Type
+from typing import TYPE_CHECKING
 
 from pydantic import conint
 from pydantic import Field
 from pydantic import IntegerError
 from pydantic import validator
-from pydantic.fields import ModelField
-from typing_extensions import Self
 
 from .._type_dict import TYPES
 from .number_type import NumberType
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+    from pydantic.fields import ModelField
 
 logger = logging.getLogger(__name__)
 
