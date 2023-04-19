@@ -43,7 +43,7 @@ repos:
           - flake8-bugbear
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.302
+    rev: v1.1.303
     hooks:
       - id: pyright
         additional_dependencies:
