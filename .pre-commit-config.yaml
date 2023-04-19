@@ -49,3 +49,21 @@ repos:
         additional_dependencies:
           - pydantic
           - pytest
+  # Source: https://medium.com/analytics-vidhya/essential-developer-tools-for-improving-your-python-code-71616254134b
+  # Adapted for use with poetry
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        stages: [commit]
+        language: system
+        entry: poetry run pytest -v --showlocals
+        types: [python]
+        pass_filenames: false
+      - id: coverage
+        name: coverage
+        stages: [push]
+        language: system
+        entry: poetry run coverage run
+        types: [python]
+        pass_filenames: false
