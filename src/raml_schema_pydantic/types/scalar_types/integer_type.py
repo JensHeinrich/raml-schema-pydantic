@@ -4,7 +4,6 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 from typing import Optional
-from typing import Self
 from typing import Type
 
 from pydantic import conint
@@ -12,6 +11,7 @@ from pydantic import Field
 from pydantic import IntegerError
 from pydantic import validator
 from pydantic.fields import ModelField
+from typing_extensions import Self
 
 from .._type_dict import TYPES
 from .number_type import NumberType
