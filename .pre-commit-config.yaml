@@ -41,6 +41,7 @@ repos:
           - flake8-docstrings
           - Flake8-pyproject
           - flake8-bugbear
+          - flake8-type-checking
 
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.303
