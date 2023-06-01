@@ -59,7 +59,7 @@ class ScalarTypeContainer(BaseModel, IType):
 
     __root__: ScalarType
 
-    def as_type(self: Self) -> Type:
+    def as_type(self: "Self") -> Type:
         """Return the type represented by the RAML definition.
 
         Returns:

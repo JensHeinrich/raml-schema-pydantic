@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING
 from dateutil import parser
 from pydantic import Field
 
+from .._type_dict import register_type_declaration
+from ..any_type import AnyType
+
 if TYPE_CHECKING:
     from pydantic.fields import ModelField
     from pydantic.typing import CallableGenerator
     from typing_extensions import Self
 
-
-from .._type_dict import TYPES
-from ..any_type import AnyType
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class RFC3339DateOnly(datetime.date):
         return self.isoformat()
 
     @classmethod
-    def validate_string_format(cls, v: datetime.date | Self | str | Any) -> Self:
+    def validate_string_format(cls, v: "datetime.date | Self | str | Any") -> "Self":
         """Validate a provided value against the field type.
 
         Args:
@@ -66,7 +66,7 @@ class RFC3339DateOnly(datetime.date):
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: datetime.date | Self | str | Any) -> bool:
+    def __eq__(self: "Self", o: "datetime.date | Self | str | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -79,7 +79,9 @@ class RFC3339DateOnly(datetime.date):
         return str(self.validate_string_format(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None"
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
@@ -111,7 +113,9 @@ class RFC3339DateTimeOnly(datetime.datetime):
         return self.isoformat()
 
     @classmethod
-    def validate_string_format(cls, v: datetime.datetime | Self | str | Any) -> Self:
+    def validate_string_format(
+        cls, v: "datetime.datetime | Self | str | Any"
+    ) -> "Self":
         """Validate a provided value against the field type.
 
         Args:
@@ -130,7 +134,7 @@ class RFC3339DateTimeOnly(datetime.datetime):
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: datetime.datetime | Self | str | Any) -> bool:
+    def __eq__(self: "Self", o: "datetime.datetime | Self | str | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -143,7 +147,9 @@ class RFC3339DateTimeOnly(datetime.datetime):
         return str(self.validate_string_format(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None"
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
@@ -175,7 +181,7 @@ class RFC3339TimeOnly(datetime.time):
         return self.isoformat(timespec="seconds")
 
     @classmethod
-    def validate_string_format(cls, v: datetime.time | Self | str | Any) -> Self:
+    def validate_string_format(cls, v: "datetime.time | Self | str | Any") -> "Self":
         """Validate a provided value against the field type.
 
         Args:
@@ -199,7 +205,7 @@ class RFC3339TimeOnly(datetime.time):
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: datetime.time | Self | str | Any) -> bool:
+    def __eq__(self: "Self", o: "datetime.time | Self | str | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -212,7 +218,9 @@ class RFC3339TimeOnly(datetime.time):
         return str(self.validate_string_format(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None"
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
@@ -245,7 +253,9 @@ class RFC3339DateTime(datetime.datetime):
         return self.isoformat(timespec="seconds")
 
     @classmethod
-    def validate_string_format(cls, v: datetime.datetime | Self | str | Any) -> Self:
+    def validate_string_format(
+        cls, v: "datetime.datetime | Self | str | Any"
+    ) -> "Self":
         """Validate a provided value against the field type.
 
         Args:
@@ -264,7 +274,7 @@ class RFC3339DateTime(datetime.datetime):
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: datetime.datetime | Self | str | Any) -> bool:
+    def __eq__(self: "Self", o: "datetime.datetime | Self | str | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -277,7 +287,9 @@ class RFC3339DateTime(datetime.datetime):
         return str(self.validate_string_format(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None"
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
@@ -310,7 +322,9 @@ class RFC2616DateTime(datetime.datetime):
         return strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
 
     @classmethod
-    def validate_string_format(cls, v: datetime.datetime | Self | str | Any) -> Self:
+    def validate_string_format(
+        cls, v: "datetime.datetime | Self | str | Any"
+    ) -> "Self":
         """Validate a provided value against the field type.
 
         Args:
@@ -329,7 +343,7 @@ class RFC2616DateTime(datetime.datetime):
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: datetime.datetime | Self | str | Any) -> bool:
+    def __eq__(self: "Self", o: "datetime.datetime | Self | str | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -342,7 +356,9 @@ class RFC2616DateTime(datetime.datetime):
         return str(self.validate_string_format(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None"
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
@@ -379,8 +395,10 @@ class DateOnlyType(AnyType):
         Returns:
             Type: Type described by the TypeDeclaration
         """
-        namespace = dict()
-        return type("DateOnly", (RFC3339DateOnly,), namespace)
+        return type("DateOnly", (RFC3339DateOnly,), {})
+
+
+register_type_declaration("date-only", DateOnlyType())
 
 
 class TimeOnlyType(AnyType):
@@ -407,8 +425,10 @@ class TimeOnlyType(AnyType):
         Returns:
             Type: Type described by the TypeDeclaration
         """
-        namespace = dict()
-        return type("TimeOnly", (RFC3339TimeOnly,), namespace)
+        return type("TimeOnly", (RFC3339TimeOnly,), {})
+
+
+register_type_declaration("time-only", TimeOnlyType())
 
 
 class DateTimeOnlyType(AnyType):
@@ -435,8 +455,10 @@ class DateTimeOnlyType(AnyType):
         Returns:
             Type: Type described by the TypeDeclaration
         """
-        namespace = dict()
-        return type("DateTimeOnly", (RFC3339DateTimeOnly,), namespace)
+        return type("DateTimeOnly", (RFC3339DateTimeOnly,), {})
+
+
+register_type_declaration("datetime-only", DateTimeOnlyType())
 
 
 class DateTimeType(AnyType):
@@ -481,21 +503,10 @@ class DateTimeType(AnyType):
         Returns:
             Type: Type described by the TypeDeclaration
         """
-        namespace = dict()
         if self.format_ == "rfc3339":
-            return type("DateTime", (RFC3339DateTime,), namespace)
+            return type("DateTime", (RFC3339DateTime,), {})
         else:
-            return type("DateTime", (RFC2616DateTime,), namespace)
+            return type("DateTime", (RFC2616DateTime,), {})
 
 
-TYPES.update(
-    {
-        t.__fields__["type_"].default: t
-        for t in {
-            DateOnlyType,  # date-only,
-            TimeOnlyType,  # time-only,
-            DateTimeOnlyType,  # datetime-only,
-            DateTimeType,  # datetime,
-        }
-    }
-)
+register_type_declaration("datetime", DateTimeType())

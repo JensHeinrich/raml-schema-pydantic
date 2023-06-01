@@ -12,7 +12,8 @@ from pydantic import Field
 from pydantic import IntegerError
 from pydantic import validator
 
-from .._type_dict import TYPES
+from .._type_dict import _TYPE_DECLARATIONS
+from .._type_dict import register_type_declaration
 from .number_type import NumberType
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ class IntegerType(NumberType):
     ] = "integer"
 
     @validator("minimum", "maximum", "multipleOf")
-    def sanity_check_numbers(cls, v: int | float | Any, field: ModelField) -> Self:
+    def sanity_check_numbers(cls, v: int | float | Any, field: "ModelField") -> int:
         """Validate the facets as integers.
 
         Args:
@@ -57,9 +58,9 @@ class IntegerType(NumberType):
         if v:
             if v % 1 != 0:
                 raise IntegerError
-        return cls(v)
+        return int(v)
 
-    def as_type(self) -> Type:
+    def as_type(self: "Self") -> Type:
         """Return the type represented by the RAML definition.
 
         Returns:
@@ -67,15 +68,10 @@ class IntegerType(NumberType):
         """
         # TODO Remove annotation after https://github.com/pydantic/pydantic/pull/5499 is merged
         return conint(
-            ge=self.minimum, le=self.maximum, multiple_of=self.multipleOf
-        )  # pyright: reportGeneralTypeIssues=false
+            ge=self.minimum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            le=self.maximum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+        )
 
 
-TYPES.update(
-    {
-        t.__fields__["type_"].default: t
-        for t in {
-            IntegerType,
-        }
-    }
-)
+register_type_declaration("integer", IntegerType())

@@ -7,21 +7,24 @@ from typing import Any
 from typing import List
 from typing import Literal
 from typing import Optional
+from typing import Sequence
 from typing import Type
 from typing import TYPE_CHECKING
 
 from pydantic import ConstrainedBytes
 from pydantic import Field
+from pydantic.error_wrappers import ErrorWrapper
 from pydantic.types import _registered
+from typing_extensions import Self
 
 from ...MediaType import MediaType
-from .._type_dict import TYPES
+from .._type_dict import register_type_declaration
 from ..any_type import AnyType
 
 if TYPE_CHECKING:
+    from pydantic.fields import ModelField
     from pydantic.typing import CallableGenerator
     from typing_extensions import Self
-    from pydantic.fields import ModelField
 
 
 logger = logging.getLogger(__name__)
@@ -41,9 +44,12 @@ class ConstrainedFile(ConstrainedBytes):
         Yields:
             Generator[AnyCallable, None, None]: Validators for the type
         """
+        # handle encoding
         yield cls.validate_encoding
+        # handle byte properties
+        yield from ConstrainedBytes.__get_validators__()
+        # handle content type
         yield cls.validate_content_type
-        yield from super().__get_validators__()
 
     def __str__(self) -> str:
         """Create the informal string representation.
@@ -62,7 +68,7 @@ class ConstrainedFile(ConstrainedBytes):
         return f"FileTypeType(content_types='{self.content_types}', format='{self.format}', )"
 
     @classmethod
-    def validate_all(cls, v: str | bytes | Self) -> Self:
+    def validate_all(cls, v: "str | bytes | Self") -> "Self":
         """Run all validators for the provided type.
 
         Args:
@@ -74,20 +80,26 @@ class ConstrainedFile(ConstrainedBytes):
         Returns:
             Self: Type
         """
+        _errors: List[ErrorWrapper] = []
         for validator in cls.__get_validators__():
-            v = validator(v)
-        if isinstance(v, ConstrainedFile):
-            return v
-        if isinstance(v, bytes):
-            return cls(v)
-        raise TypeError(f"{v} could not be coerced into {type(cls)}")
+            try:
+                v = validator(v)
+            except (TypeError, AssertionError, ValueError) as exc:
+                _errors.append(ErrorWrapper(exc=exc, loc=validator.__name__))
+
+        if not isinstance(v, ConstrainedFile):
+            raise TypeError(f"{str(v)} could not be coerced into {type(cls)}")
+
+        return v  # type: ignore[return-value] # FIXME
 
     @classmethod
-    def validate_encoding(cls, v: str | bytes | Self, field: ModelField) -> Self:
+    def validate_encoding(
+        cls, v: "ConstrainedBytes | bytes | Self", field: "ModelField"
+    ) -> "Self | bytes | ConstrainedBytes":
         """Validate the encoding of the provided file.
 
         Args:
-            v (str | bytes | Self): value
+            v (ConstrainedBytes | bytes | Self): value
             field (ModelField): model field containing additional information
 
         Raises:
@@ -95,29 +107,40 @@ class ConstrainedFile(ConstrainedBytes):
             TypeError: Exception for unsupported type
 
         Returns:
-            Self: Instance of the class
+            Self| bytes | ConstrainedBytes: bytes-like object
         """
+
         if field and (_encoding := field.field_info.extra["encoding"]):
             try:
                 if _encoding == "base64":
-                    v = base64.b64decode(v)
+                    if isinstance(v, str):
+                        # a string needs to be decoded to bytes
+                        logger.info("Trying to decode base64 string to bytes")
+                        v = base64.b64decode(v)
                 if _encoding == "binary":
                     logger.warning("Can not validate encoding for encoding `binary`.")
-            except binascii.Error:
-                raise TypeError("Wrong encoding")
-        if isinstance(v, ConstrainedFile):
-            return v
-        if isinstance(v, bytes):
-            return cls(v)
+            except binascii.Error as exc:
+                raise TypeError("Wrong encoding") from exc
 
-        raise TypeError(f"Unsupported type {type(v)}")
+        else:
+            logger.warning(f"Can not validate encoding for {str(v)}")
+
+        if not isinstance(
+            v,
+            (bytes, ConstrainedBytes, ConstrainedFile),
+        ):
+            raise TypeError(f"Unsupported type {type(v)}")
+
+        return v
 
     @classmethod
-    def validate_content_type(cls, v: bytes | Self, field: ModelField) -> Self:
+    def validate_content_type(
+        cls, v: "bytes | Self | ConstrainedFile", field: "ModelField"
+    ) -> "Self":
         """Validate the content type of the provided file.
 
         Args:
-            v ( bytes | Self): value
+            v ( bytes | Self| ConstrainedFile): value
             field (ModelField): model field containing additional information
 
         Raises:
@@ -130,28 +153,21 @@ class ConstrainedFile(ConstrainedBytes):
         if field:
             content_types: None | List[MediaType] = field.field_info.extra["file_types"]
             if content_types:
-                try:
-                    _content_type = str(
-                        v.content_type  # pyright: reportGeneralTypeIssues=false
-                    )
-                except AttributeError:
-                    logger.warning(
-                        "Could not detect content type, falling back to '*/*'"
-                    )
-                    _content_type = "*/*"
+                _content_type: str | MediaType = getattr(v, "content_type", "*/*")
+
                 if _content_type not in set(
                     str(content_type) for content_type in content_types
                 ) | {"*/*"}:
                     raise TypeError(f"Wrong content type {_content_type}")
 
+        if isinstance(v, bytes):
+            v = cls(v)
         if isinstance(v, ConstrainedFile):
             return v
-        if isinstance(v, bytes):
-            return cls(v)
 
         raise TypeError(f"Unsupported type {type(v)}")
 
-    def __eq__(self: Self, o: bytes | Self | Any) -> bool:
+    def __eq__(self: "Self", o: "bytes | Self | Any") -> bool:
         """Evaluate the equality of a type and a supported other input.
 
         Args:
@@ -164,19 +180,21 @@ class ConstrainedFile(ConstrainedBytes):
         return str(self.validate_all(o)) == str(self)
 
     @classmethod
-    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+    def __modify_schema__(
+        cls, field_schema: dict[str, Any], field: "ModelField | None" = None
+    ):
         """Update the schema of a field specified as this type.
 
         Args:
-            field_schema (dict[str, Any]): Schema of the field
-            field (ModelField | None): Field in the model
+            field_schema (dict[str, Any]): Schema of the field.
+            field (ModelField | None): Field in the model. Defaults to None.
         """
+        super().__modify_schema__(field_schema=field_schema)
         field_schema["type"] = "string"
         if field:
             field_schema["format"] = field.field_info.extra["encoding"]
 
 
-# from pydantic conbytes
 def confile(
     *,
     min_length: Optional[int] = None,
@@ -226,19 +244,19 @@ class FileType(AnyType):
     # | fileTypes?
     # | A list of valid content-type strings for the file.
     # The file type `*/*` MUST be a valid value.
-    fileTypes: Optional[List[MediaType]]  # noqa: N815
+    fileTypes: Optional[List[MediaType]] = []  # noqa: N815
 
     # | minLength?
     # | Specifies the minimum number of bytes for a parameter value.
     # The value MUST be equal to or greater than 0.
     # <br /><br />**Default:** `0`
-    minLength: int = Field(0, ge=0)  # noqa: N815
+    minLength: int = Field(default=0, ge=0)  # noqa: N815
 
     # | maxLength?
     # | Specifies the maximum number of bytes for a parameter value.
     # The value MUST be equal to or greater than 0.<br /><br />
     # **Default:** `2147483647`
-    maxLength: int = Field(2147483647, ge=0)  # noqa: N815
+    maxLength: int = Field(default=2147483647, ge=0)  # noqa: N815
 
     def as_type(self) -> Type:
         """Return the type represented by the RAML definition.
@@ -252,12 +270,21 @@ class FileType(AnyType):
             content_types=self.fileTypes or [MediaType("*/*")],
         )
 
+    @property
+    def _facets(self) -> Sequence[str]:
+        return (
+            {
+                "minLength",
+                "maxLength",
+            }
+            | {"fileTypes"}
+            if self.fileTypes != []
+            else {}
+        )
 
-TYPES.update(
-    {
-        t.__fields__["type_"].default: t
-        for t in {
-            FileType,
-        }
-    }
-)
+    @property
+    def _properties(self: Self) -> Sequence[str]:
+        return {}
+
+
+register_type_declaration("datetime-only", FileType())

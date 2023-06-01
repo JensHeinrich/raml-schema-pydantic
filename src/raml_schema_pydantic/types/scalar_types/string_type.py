@@ -4,12 +4,14 @@ import re
 from typing import Annotated
 from typing import Literal
 from typing import Optional
+from typing import Sequence
 from typing import Type
 
 from pydantic import constr
 from pydantic import Field
+from typing_extensions import Self
 
-from .._type_dict import TYPES
+from .._type_dict import _TYPE_DECLARATIONS
 from ..any_type import AnyType
 
 logger = logging.getLogger(__name__)
@@ -62,12 +64,17 @@ class StringType(AnyType):
             else None,  # pyright: reportGeneralTypeIssues=false
         )
 
+    @property
+    def _facets(self: Self) -> Sequence[str]:
+        return [
+            t for t in self.__fields_set__ - "type_" if getattr(self, t) is not None
+        ]
 
-TYPES.update(
-    {
-        t.__fields__["type_"].default: t
-        for t in {
-            StringType,
-        }
-    }
-)
+    @property
+    def _properties(self: Self) -> Sequence[str]:
+        return {}
+
+
+from .._type_dict import register_type_declaration
+
+register_type_declaration("string", StringType())

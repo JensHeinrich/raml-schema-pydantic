@@ -1,14 +1,18 @@
 """Module for boolean type."""
 import logging
 from typing import Annotated
+from typing import Any
+from typing import Dict
 from typing import Literal
 from typing import Optional
+from typing import Sequence
 from typing import Type
 
 from pydantic import Extra
 from pydantic import Field
+from typing_extensions import Self
 
-from .._type_dict import TYPES
+from .._type_dict import register_type_declaration
 from ..any_type import AnyType
 
 logger = logging.getLogger(__name__)
@@ -37,8 +41,16 @@ class BooleanType(AnyType):
         Returns:
             Type: Type described by the TypeDeclaration
         """
-        namespace = dict()
+        namespace: Dict[str, Any] = dict()
         return type("BooleanType", (bool,), namespace)
 
+    @property
+    def _facets(self: Self) -> Sequence[str]:
+        return {}
 
-TYPES.update({t.__fields__["type_"].default: t for t in {BooleanType}})
+    @property
+    def _properties(self: Self) -> Sequence[str]:
+        return {}
+
+
+register_type_declaration("boolean", BooleanType())

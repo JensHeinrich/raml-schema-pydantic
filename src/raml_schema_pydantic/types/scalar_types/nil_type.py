@@ -9,7 +9,7 @@ from typing import TypeAlias
 from pydantic import Extra
 from pydantic import Field
 
-from .._type_dict import TYPES
+from .._type_dict import _TYPE_DECLARATIONS
 from ..any_type import AnyType
 
 ContentType: TypeAlias = str  # TODO
@@ -66,11 +66,6 @@ class NilType(AnyType):
         return None.__class__
 
 
-TYPES.update(
-    {
-        t.__fields__["type_"].default: t
-        for t in {
-            NilType,
-        }
-    }
-)
+from .._type_dict import register_type_declaration
+
+register_type_declaration("nil", NilType())

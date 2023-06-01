@@ -9,6 +9,7 @@ from typing import Type
 from pydantic import confloat
 from pydantic import Field
 
+from .._type_dict import register_type_declaration
 from ..any_type import AnyType
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class NumberType(AnyType):
     # Any JSON number with the following additional facets:
 
     type_: Annotated[
-        Optional[Literal["number"]],
+        Optional[Literal["number"] | Literal["integer"]],
         Field(
             alias="type",
             required=True,
@@ -45,11 +46,11 @@ class NumberType(AnyType):
 
     # |minimum?
     # | The minimum value.
-    minimum: Optional[float]
+    minimum: Optional[float] = None
 
     # |maximum?
     # | The maximum value.
-    maximum: Optional[float]
+    maximum: Optional[float] = None
 
     # |format?
     # | The format of the value.
@@ -58,10 +59,11 @@ class NumberType(AnyType):
     format_: Annotated[
         Optional[NumberFormatEnum],
         Field(alias="format"),
-    ]
+    ] = None
+
     # |multipleOf?
     # | A numeric instance is valid against "multipleOf" if the result of dividing the instance by this keyword's value is an integer. # noqa: E501
-    multipleOf: Optional[float]  # noqa: N815
+    multipleOf: Optional[float] = None  # noqa: N815
 
     def as_type(self) -> Type:
         """Return the type represented by the RAML definition.
@@ -71,5 +73,10 @@ class NumberType(AnyType):
         """
         # TODO Remove annotation after https://github.com/pydantic/pydantic/pull/5499 is merged
         return confloat(
-            ge=self.minimum, le=self.maximum, multiple_of=self.multipleOf
-        )  # pyright: reportGeneralTypeIssues=false
+            ge=self.minimum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            le=self.maximum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+        )
+
+
+register_type_declaration("number", NumberType())
