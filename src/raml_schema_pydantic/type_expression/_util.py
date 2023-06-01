@@ -4,6 +4,7 @@ from collections import UserString
 from typing import Any
 from typing import List
 from typing import Sequence
+from typing import Tuple
 from typing import Type
 from typing import TypeGuard
 from typing import TypeVar
@@ -34,7 +35,9 @@ OPERATOR_NOOP: Operator[Token] = Operator(
 OPS: List[Operator[Token]] = [OPERATOR_ARRAY, OPERATOR_UNION]
 
 
-def is_iterable_of(val: Sequence[Any], t: Type[_T]) -> TypeGuard[Sequence[_T]]:
+def is_iterable_of(
+    val: Sequence[Any], t: Type[_T] | Tuple[Type[_T], ...]
+) -> TypeGuard[Sequence[_T]]:
     """Check all values of a list against the type.
 
     Args:
