@@ -18,10 +18,10 @@ from pydantic import validator
 from pydantic.generics import GenericModel
 
 from .ast import INode
+from .token_types import _SymbolType
+from .token_types import _ValueType
 from .token_types import Operator
-from .token_types import SymbolType_
 from .token_types import Token
-from .token_types import ValueType_
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ValueNode(GenericModel, INode, Generic[ValueType_]):
+class ValueNode(GenericModel, INode, Generic[_ValueType]):
     """Dedicated class for values nodes."""
 
-    value: ValueType_
+    value: _ValueType
     precedence: int = -1
 
     @root_validator(pre=True)
@@ -80,11 +80,11 @@ class ValueNode(GenericModel, INode, Generic[ValueType_]):
             return "ValueNode(value='UNKNOWN VALUE')"
 
 
-class OperatorOrValueNode(GenericModel, Generic[SymbolType_, ValueType_]):
-    __root__: OperatorNode[SymbolType_, ValueType_] | ValueNode[ValueType_]
+class OperatorOrValueNode(GenericModel, Generic[_SymbolType, _ValueType]):
+    __root__: OperatorNode[_SymbolType, _ValueType] | ValueNode[_ValueType]
 
 
-class OperatorNode(Operator[SymbolType_], INode, Generic[SymbolType_, ValueType_]):
+class OperatorNode(Operator[_SymbolType], INode, Generic[_SymbolType, _ValueType]):
     """Dedicated class for operator nodes."""
 
     class Config:  # noqa [D106]
@@ -92,11 +92,7 @@ class OperatorNode(Operator[SymbolType_], INode, Generic[SymbolType_, ValueType_
 
     # op: Operator
     children: List[
-        # Union[OperatorNode[SymbolType_, ValueType_], ValueNode[ValueType_]]
-        # OperatorOrValueNode[_SymbolType, _ValueType]
-        OperatorNode[SymbolType_, ValueType_]
-        | ValueNode[ValueType_]
-        # Type[Node]
+        OperatorNode[_SymbolType, _ValueType] | ValueNode[_ValueType]
     ]  # Ordering might be important for non commutative Operations
 
     @root_validator(pre=True)
@@ -107,15 +103,6 @@ class OperatorNode(Operator[SymbolType_], INode, Generic[SymbolType_, ValueType_
                 _values.update(_values["op"])
             return _values
         raise PydanticTypeError(msg_template=f"Expected Mapping, got {type(values)}")
-
-    # def __init__(self, op: Operator, children: List[INode], *args, **kwargs) -> None:
-    #     super().__init__(*args, **kwargs)
-    #     self.op = op
-    #     self.children = children
-
-    # @property
-    # def precedence(self) -> int:
-    #     return self.op.precedence
 
     @validator("children")
     @classmethod
@@ -157,9 +144,6 @@ class OperatorNode(Operator[SymbolType_], INode, Generic[SymbolType_, ValueType_
                 *(c.as_dot() for c in self.children),
             )
         )
-
-    # def __repr__(self) -> str:
-    #     return f"OperatorNode(op={self.op.symbol},children=[{','.join(c.__repr__() for c in self.children)}])"
 
     def __str__(self) -> str:
         """Create the informal string representation.
@@ -208,9 +192,23 @@ class OperatorNode(Operator[SymbolType_], INode, Generic[SymbolType_, ValueType_
                 return f"{_child_string}{self.value}"
 
 
+_OperatorNodeType = TypeVar("_OperatorNodeType", bound=OperatorNode)
+_OperatorNodeType_co = TypeVar(
+    "_OperatorNodeType_co", bound=OperatorNode, covariant=True
+)
+_OperatorNodeType_contra = TypeVar(
+    "_OperatorNodeType_contra", bound=OperatorNode, contravariant=True
+)
+_ValueNodeType = TypeVar("_ValueNodeType", bound=ValueNode)
+_ValueNodeType_co = TypeVar("_ValueNodeType_co", bound=ValueNode, covariant=True)
+_ValueNodeType_contra = TypeVar(
+    "_ValueNodeType_contra", bound=ValueNode, contravariant=True
+)
+
+
 def postfix_to_ast(
-    input_data: List[Operator[SymbolType_] | ValueType_],
-) -> ValueNode[ValueType_] | OperatorNode[SymbolType_, ValueType_]:
+    input_data: List[Operator[_SymbolType] | _ValueType],
+) -> ValueNode[_ValueType] | OperatorNode[_SymbolType, _ValueType]:
     """Convert a tree in postfix notation into a "proper" Tree.
 
     Args:
@@ -221,10 +219,10 @@ def postfix_to_ast(
     """
 
     def _parse_as_far_as_possible(
-        input_data: List[Operator[SymbolType_] | ValueType_],
+        input_data: List[Operator[_SymbolType] | _ValueType],
     ) -> Tuple[
-        OperatorNode[SymbolType_, ValueType_] | ValueNode[ValueType_],
-        List[Operator[SymbolType_] | ValueType_],
+        OperatorNode[_SymbolType, _ValueType] | ValueNode[_ValueType],
+        List[Operator[_SymbolType] | _ValueType],
     ]:
         """Parse a list of operators and values into a Tree and a list of unused entries.
 
@@ -237,10 +235,10 @@ def postfix_to_ast(
         Returns:
             Tuple[ITree, List[str | Operator]]: Subtree and unused entries
         """
-        _current: ValueType_ | Operator[SymbolType_] = input_data.pop()
+        _current: _ValueType | Operator[_SymbolType] = input_data.pop()
         if isinstance(_current, Operator):
             children: List[
-                ValueNode[ValueType_] | OperatorNode[SymbolType_, ValueType_]
+                ValueNode[_ValueType] | OperatorNode[_SymbolType, _ValueType]
             ]
             if _current.unary is True:
                 child, input_data = _parse_as_far_as_possible(input_data)
@@ -269,8 +267,8 @@ def postfix_to_ast(
         raise PydanticTypeError(msg_template="ValueNode or Operator required")
 
     def _parse(
-        input_data: List[Operator[SymbolType_] | ValueType_],
-    ) -> OperatorNode[SymbolType_, ValueType_] | ValueNode[ValueType_]:
+        input_data: List[Operator[_SymbolType] | _ValueType],
+    ) -> OperatorNode[_SymbolType, _ValueType] | ValueNode[_ValueType]:
         _node, input_data = _parse_as_far_as_possible(input_data)
         if input_data:
             raise ValueError("Postfix notation was not resolvable")
@@ -297,4 +295,15 @@ def check_in(instance: Any, d: Mapping[_K, Any] | Sequence[_K]) -> TypeGuard[_K]
     return False
 
 
-__all__ = ("check_in", "postfix_to_ast", "OperatorNode", "ValueNode")
+__all__ = (
+    "_OperatorNodeType_co",
+    "_OperatorNodeType_contra",
+    "_OperatorNodeType",
+    "_ValueNodeType_co",
+    "_ValueNodeType_contra",
+    "_ValueNodeType",
+    "check_in",
+    "OperatorNode",
+    "postfix_to_ast",
+    "ValueNode",
+)
