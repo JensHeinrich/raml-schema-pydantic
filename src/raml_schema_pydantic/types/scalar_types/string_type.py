@@ -11,7 +11,6 @@ from pydantic import constr
 from pydantic import Field
 from typing_extensions import Self
 
-from .._type_dict import _TYPE_DECLARATIONS
 from ..any_type import AnyType
 
 logger = logging.getLogger(__name__)
