@@ -72,7 +72,7 @@ class StringType(AnyType):
 
     @property
     def _properties(self: Self) -> Sequence[str]:
-        return {}
+        return []
 
 
 from .._type_dict import register_type_declaration
