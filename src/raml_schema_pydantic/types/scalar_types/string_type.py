@@ -6,10 +6,13 @@ from typing import Literal
 from typing import Optional
 from typing import Sequence
 from typing import Type
+from typing import TYPE_CHECKING
 
 from pydantic import constr
 from pydantic import Field
-from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 from ..any_type import AnyType
 
@@ -48,7 +51,7 @@ class StringType(AnyType):
     # **Default:** `2147483647`
     maxLength: int = Field(default=2147483647, ge=0)  # noqa: N815
 
-    def as_type(self) -> Type:
+    def as_type(self: "Self") -> Type:
         """Return the type represented by the RAML definition.
 
         Returns:
@@ -64,13 +67,13 @@ class StringType(AnyType):
         )
 
     @property
-    def _facets(self: Self) -> Sequence[str]:
+    def _facets(self: "Self") -> Sequence[str]:
         return [
             t for t in self.__fields_set__ - {"type_"} if getattr(self, t) is not None
         ]
 
     @property
-    def _properties(self: Self) -> Sequence[str]:
+    def _properties(self: "Self") -> Sequence[str]:
         return []
 
 
