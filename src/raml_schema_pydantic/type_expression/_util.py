@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections import UserString
 from typing import Any
+from typing import Iterable
 from typing import List
+from typing import overload
 from typing import Sequence
 from typing import Tuple
 from typing import Type
@@ -10,7 +12,7 @@ from typing import TypeGuard
 from typing import TypeVar
 
 from ._shunt import Operator
-from ._shunt.token_types import Token
+from ._shunt import Token
 
 _T = TypeVar("_T")
 
@@ -35,10 +37,31 @@ OPERATOR_NOOP: Operator[Token] = Operator(
 OPS: List[Operator[Token]] = [OPERATOR_ARRAY, OPERATOR_UNION]
 
 
+@overload
+def is_iterable_of(
+    val: List[Any], t: Type[_T] | Tuple[Type[_T], ...]
+) -> TypeGuard[List[_T]]:
+    ...
+
+
+@overload
+def is_iterable_of(
+    val: Tuple[Any], t: Type[_T] | Tuple[Type[_T], ...]
+) -> TypeGuard[Tuple[_T]]:
+    ...
+
+
+@overload
 def is_iterable_of(
     val: Sequence[Any], t: Type[_T] | Tuple[Type[_T], ...]
 ) -> TypeGuard[Sequence[_T]]:
-    """Check all values of a list against the type.
+    ...
+
+
+def is_iterable_of(
+    val: Iterable[Any], t: Type[_T] | Tuple[Type[_T], ...]
+) -> TypeGuard[Iterable[_T]]:
+    """Check all values of a sequence against the type.
 
     Args:
         val (Iterable[Any]): List of values to check
