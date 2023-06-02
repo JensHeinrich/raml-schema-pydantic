@@ -61,7 +61,7 @@ class StringType(AnyType):
             # TODO Remove annotation after https://github.com/pydantic/pydantic/pull/5499 is merged
             regex=self.pattern.pattern
             if self.pattern is not None
-            else None,  # pyright: reportGeneralTypeIssues=false
+            else None,  # pyright: ignore[reportGeneralTypeIssues]
         )
 
     @property
