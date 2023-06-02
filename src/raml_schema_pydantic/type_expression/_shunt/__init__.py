@@ -1,6 +1,4 @@
 """Module for shunting yard algorithm."""
-from __future__ import annotations
-
 import logging
 import re
 from contextlib import suppress
@@ -14,6 +12,12 @@ from typing import Set
 from typing import TypeVar
 
 from .ast import ITree as ITree
+from .token_types import _OperatorType as _OperatorType
+from .token_types import _OperatorType_co as _OperatorType_co
+from .token_types import _OperatorType_contra as _OperatorType_contra
+from .token_types import _TokenType as _TokenType
+from .token_types import _TokenType_co as _TokenType_co
+from .token_types import _TokenType_contra as _TokenType_contra
 from .token_types import ClosingDelim as ClosingDelim
 from .token_types import DelimPair as DelimPair
 from .token_types import OpeningDelim as OpeningDelim
@@ -25,27 +29,12 @@ from .util import OperatorNode as OperatorNode
 from .util import postfix_to_ast as postfix_to_ast
 from .util import ValueNode as ValueNode
 
-__all__ = (
-    "ClosingDelim",
-    "DelimPair",
-    "INode",
-    "ITree",
-    "OpeningDelim",
-    "Operator",
-    "OperatorNode",
-    "postfix_to_ast",
-    "Token",
-    "ValueNode",
-)
-
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_DELIMS = [
     DelimPair(opening=OpeningDelim("("), closing=ClosingDelim(")")),
 ]
-
-_TokenType = TypeVar("_TokenType", bound=str)
 
 
 def any_starts_with(
@@ -64,10 +53,13 @@ def any_starts_with(
     return any(t.startswith(prefix) for t in candidates)
 
 
+_StrType_co = TypeVar("_StrType_co", bound=str, covariant=True)
+
+
 def get_longest_match(
-    candidates: Iterable[str],
+    candidates: Iterable[_StrType_co],
     input_string: str,
-) -> str:
+) -> _StrType_co:
     """Get the longest part of the input_string which is still a valid candidate.
 
     Args:
@@ -89,29 +81,29 @@ def get_longest_match(
         0,
         -1,  # decrease index
     ):
-        if (matched := input_string[: i + 1]) in candidates:
+        if (matched := cast("_StrType_co", input_string[: i + 1])) in candidates:
             return matched
     raise ValueError("No match found!")
 
 
 def yield_longest_match(
-    input_data: str, symbols: Iterable[_TokenType]
-) -> Generator[_TokenType, None, None]:
+    input_data: str, symbols: Iterable[_TokenType_co]
+) -> Generator[_TokenType_co | Token, None, None]:
     """Yield longest matching sequences.
 
     String sequences are assumed to be separated by tokens and the longest matching tokens are preferred.
 
     Args:
         input_data (str): String to yield from.
-        symbols (Iterable[_TokenType]): Known tokens.
+        symbols (Iterable[_TokenType_co]): Known tokens.
 
     Raises:
         StopIteration: Exception for an exhausted generator.
 
     Yields:
-        Generator[_TokenType, None, None]: Generator yielding the matching sequences.
+        Generator[_TokenType_co | Token, None, None]: Generator yielding the matching sequences.
     """
-    _sorted_symbols: List[_TokenType] = sorted(symbols, key=len, reverse=True)
+    _sorted_symbols: List[_TokenType_co] = sorted(symbols, key=len, reverse=True)
     _input_data: str = input_data
     _current: str | None = None
 
@@ -119,7 +111,7 @@ def yield_longest_match(
         for token in _sorted_symbols:
             if _input_data.startswith(token):
                 if _current is not None:
-                    yield cast("_TokenType", _current)
+                    yield Token(_current)
                 yield token
                 _input_data = _input_data.removeprefix(token)
                 _current = None
@@ -130,7 +122,7 @@ def yield_longest_match(
                 _input_data[1:],
             )
     if _current is not None:
-        yield cast("_TokenType", _current)
+        yield Token(_current)
     raise StopIteration()
 
 
@@ -163,18 +155,20 @@ def tokenize_from_generator(
 
 def tokenize(  # noqa: [C901]
     input_data: str,
-    ops: Sequence[Operator],
+    ops: Sequence[_OperatorType_co],
     delim_pairs: Iterable[DelimPair] = DEFAULT_DELIMS,
-) -> List[Token]:
-    _opening_delims: Set[Token] = {delim.opening for delim in delim_pairs}
-    _closing_delims: Set[Token] = {delim.closing for delim in delim_pairs}
-    _operator_symbols: Set[Token] = {op.value for op in ops}
+) -> List[_OperatorType_co | Token]:
+    _opening_delims: Set[OpeningDelim] = {delim.opening for delim in delim_pairs}
+    _closing_delims: Set[ClosingDelim] = {delim.closing for delim in delim_pairs}
+    _operator_symbols: Dict[Token, _OperatorType_co] = {op.value: op for op in ops}
 
-    _multi_letter_tokens: Set[Token] = {
-        t for t in _opening_delims | _closing_delims | _operator_symbols if len(t) > 1
+    _multi_letter_tokens: Set[OpeningDelim | ClosingDelim | Token] = {
+        t
+        for t in _opening_delims | _closing_delims | _operator_symbols.keys()
+        if len(t) > 1
     }
 
-    _tokens: List[Token] = []
+    _tokens: List[_OperatorType_co | Token] = []
 
     _data: str = re.sub(r"\s", "", input_data)
     if _data != input_data:
@@ -185,7 +179,14 @@ def tokenize(  # noqa: [C901]
     while len(_data) > 0:
         _next, _data = _data[0], _data[1:]
 
-        if _next in _operator_symbols | _opening_delims | _closing_delims:
+        if _next in _operator_symbols.keys():
+            if _current != "":
+                # flush current token
+                _tokens.append(Token(_current))
+                _current = ""
+            # flush op-like
+            _tokens.append(Token(_next))
+        elif _next in _opening_delims | _closing_delims:
             if _current != "":
                 # flush current token
                 _tokens.append(Token(_current))
@@ -223,9 +224,9 @@ UnusedTokensException = ValueError("Unused tokens")
 
 def shunt(  # noqa: [C901]
     input_data: str,
-    ops: Sequence[Operator],
+    ops: Sequence[_OperatorType_co],
     delim_pairs: Iterable[DelimPair] = DEFAULT_DELIMS,
-) -> List[Token | Operator]:
+) -> List[Token | _OperatorType_co]:
     """Parse a string into postfix notation by the shunting yard algorithm.
 
     Args:
@@ -243,7 +244,7 @@ def shunt(  # noqa: [C901]
         ValueError: _description_
 
     Returns:
-        List[Token | Operator]: _description_
+        List[Token | Operator]: Postfix notation of the parsed string
     """
     _opening_delim_dict: Dict[OpeningDelim, ClosingDelim] = {
         d.opening: d.closing for d in delim_pairs
@@ -251,19 +252,19 @@ def shunt(  # noqa: [C901]
     _closing_delim_dict: Dict[ClosingDelim, OpeningDelim] = {
         d.closing: d.opening for d in delim_pairs
     }
-    _operator_dict: Dict[Token, Operator] = {Token(op.value): op for op in ops}
+    _operator_dict: Dict[Token, _OperatorType_co] = {Token(op.value): op for op in ops}
 
-    _output_stack: List[Token | Operator] = []
-    _op_stack: List[Operator | OpeningDelim] = []
+    _output_stack: List[Token | _OperatorType_co] = []
+    _op_stack: List[_OperatorType_co | OpeningDelim] = []
 
-    _data: List[Token] = tokenize(
+    _data: List[_OperatorType_co | Token] = tokenize(
         input_data=input_data,
         ops=ops,
         delim_pairs=delim_pairs,
     )
 
-    _next: Token
-    _op: Operator
+    _next: Token | _OperatorType_co
+    _op: _OperatorType_co
 
     while _data:
         # algorithm based on https://en.wikipedia.org/wiki/Shunting_yard_algorithm
@@ -277,11 +278,13 @@ def shunt(  # noqa: [C901]
                 "This is not implemented and should never happen!"
             )
         elif check_in(_next, _operator_dict):  # _next in _operator_dict:
-            if _output_stack == []:
+            _op = _operator_dict[_next]
+            if _output_stack == [] and not (
+                _op.unary and _op.unary_position == "prefix"
+            ):
                 raise TypeError(
                     f"Input sequence {input_data} may not start with operator {_next}."
                 )
-            _op = _operator_dict[_next]
             while (
                 _op_stack
                 and isinstance(_op_stack[-1], Operator)
@@ -319,7 +322,7 @@ def shunt(  # noqa: [C901]
 
     while _op_stack:
         _tail = _op_stack.pop()
-        if isinstance(_tail, Operator):
+        if not isinstance(_tail, OpeningDelim):
             _output_stack.append(_tail)
         else:  # elif _check_in(_tail, _op_stack):  # _tail in _opening_delim_dict:
             raise UnusedTokensException from ValueError(
@@ -327,3 +330,25 @@ def shunt(  # noqa: [C901]
             )
 
     return _output_stack
+
+
+__all__ = (
+    "_OperatorType_co",
+    "_OperatorType_contra",
+    "_OperatorType",
+    "_TokenType_co",
+    "_TokenType_contra",
+    "_TokenType",
+    "ClosingDelim",
+    "ClosingDelim",
+    "DelimPair",
+    "INode",
+    "ITree",
+    "OpeningDelim",
+    "Operator",
+    "OperatorNode",
+    "postfix_to_ast",
+    "shunt",
+    "Token",
+    "ValueNode",
+)
