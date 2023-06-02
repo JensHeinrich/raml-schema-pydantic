@@ -67,7 +67,7 @@ class StringType(AnyType):
     @property
     def _facets(self: Self) -> Sequence[str]:
         return [
-            t for t in self.__fields_set__ - "type_" if getattr(self, t) is not None
+            t for t in self.__fields_set__ - {"type_"} if getattr(self, t) is not None
         ]
 
     @property
