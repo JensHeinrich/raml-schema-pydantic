@@ -27,18 +27,24 @@ types-PyYAML = "^6.0.12"
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
 types-python-dateutil = "^2.8.19.12"
-coverage = {extras = ["toml"], version = "^7.2.3"}
+coverage = { extras = ["toml"], version = "^7.2.3" }
 safety = "^2.3.5"
 flake8-bugbear = "^23.3.23"
 flake8-type-checking = "^2.4.0"
 flake8-pyproject = "^1.2.3"
 mypy = "^1.2.0"
+autoflake = "^2.1.1"
+types-regex = "^2023.5.5.0"
 
 
 [tool.poetry.group.typechecking.dependencies]
 types-python-dateutil = "^2.8.19.12"
 types-requests = "^2.28.11.17"
 types-pyyaml = "^6.0.12.9"
+
+
+[tool.poetry.group.lint.dependencies]
+pylint-pydantic = "^0.1.8"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -47,11 +53,15 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
 
+# https://github.com/pylint-dev/pylint/issues/6900#issuecomment-1253533143
+[tool.pylint.MASTER]
+load-plugins = "pylint_pydantic"
+
 [tool.isort]
 profile = "black"
 
 [tool.flake8]
-extend-ignore = ['E501']
+extend-ignore = ['E501',"N807"]
 classmethod_decorators = ['validator', 'root_validator', 'classmethod']
 max_complexity = 8
 
@@ -64,3 +74,23 @@ source = ['app/']
 precision = 2
 skip_covered = true
 fail_under = 90
+
+# [tool.poetry.scripts]
+# hypothesis = [
+#     "_=raml_schema_pydantic.type_expression._shunt.token_types:_hypothesis_setup_hook",
+# ]
+# # https://python-poetry.org/docs/pyproject/#scripts
+# # https://hypothesis.readthedocs.io/en/latest/strategies.html#hypothesis-integration-via-setuptools-entry-points
+
+# entry_points = {"hypothesis": ["_ = mymodule.a_submodule"]}
+
+# entry_points = {"hypothesis": ["_ = mymodule:_hypothesis_setup_hook"]}
+
+# You can list a module to import by dotted name
+# Or name a specific function too, and Hypothesis will call it for you
+
+# https://github.com/python-poetry/poetry/issues/927
+
+[tool.poetry.plugins."hypothesis"]
+_ = "raml_schema_pydantic.type_expression._shunt.token_types:_hypothesis_setup_hook"
+# https://github.com/HypothesisWorks/hypothesis/blob/f7b5da6e2f95da93ea5ad3a625bcfe4d808c70a1/hypothesis-python/src/hypothesis/entry_points.py#L26
