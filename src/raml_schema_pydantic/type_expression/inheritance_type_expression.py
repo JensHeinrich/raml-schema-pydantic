@@ -1,56 +1,19 @@
+"""Module for inheritance expressions."""
 # pyright: basic
 #  #strict
-from __future__ import annotations
-
 import json
 import logging
-from abc import abstractmethod
-from collections import UserString
 from sys import version_info
-from typing import Any
-from typing import ClassVar
-from typing import Dict
 from typing import List
-from typing import Literal
-from typing import Mapping
-from typing import NoReturn
-from typing import Optional
-from typing import overload
-from typing import Sequence
-from typing import Tuple
-from typing import Type
 from typing import TYPE_CHECKING
-from typing import TypeAlias
 from typing import TypeVar
-from typing import Union
 
-from pydantic import errors as PydanticErrors
-from pydantic import PydanticTypeError
-from pydantic import PydanticValueError
 from pydantic import root_validator
-from pydantic import StrError
-from pydantic.error_wrappers import ErrorList
-from pydantic.error_wrappers import ErrorWrapper
-from pydantic.fields import ModelField
 from pydantic.main import BaseModel
 from pydantic.utils import ROOT_KEY
 from typing_extensions import deprecated
-from typing_extensions import override
 
-from .._errors import ValidationError
 from .._helpers import _ValuesType
-from .._helpers import debug
-from .._helpers import debug_advanced
-from ..types._IType import IType
-from ._base_type_expression_type import BaseTypeExpressionType
-from ._shunt import ITree  # , Tree
-from ._shunt import Operator
-from ._shunt import OperatorNode
-from ._shunt import postfix_to_ast
-from ._shunt import shunt
-from ._shunt import ValueNode
-from ._util import *
-from .type_expression import TypeExpression
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:
@@ -71,11 +34,6 @@ else:
         from typing import Self
 
 
-if TYPE_CHECKING:
-    from pydantic.error_wrappers import ErrorList
-    from pydantic.fields import ValidateReturn
-
-
 logger = logging.getLogger(__name__)
 LOG_LEVEL = logging.WARNING  # INFO
 
@@ -83,17 +41,15 @@ LOG_LEVEL = logging.WARNING  # INFO
 _T = TypeVar("_T")
 
 
-class InheritanceExpression(BaseModel):
-    __root__: List[
-        TypeExpression
-        # | BaseTypeExpressionTyped
-    ]
+@deprecated("This class is replaced by recursive parsing of the referenced types.")
+class InheritanceExpression(BaseModel):  # noqa: ignore[D101]
+    __root__: List["TypeExpression"]
 
     @root_validator
     def _check_length(cls, values: _ValuesType) -> _ValuesType:
         logger.warning(f"checking length for {values}")
         if values:
-            assert (
+            assert (  # nosec
                 len(values[ROOT_KEY]) > 1
             ), f"InheritanceExpression is only defined for more than one type"
             return values
@@ -103,12 +59,13 @@ class InheritanceExpression(BaseModel):
     #  1) a `pattern` facet when a parent type already declares a `pattern` facet
     #  2) a user-defined facet when another user-defined facet has the same value.
     #  In these cases, an invalid type declaration occurs.
+    # TODO Implement validation logic
 
-    # def as_type(self) -> Type:
-    #     ...
-
-    def __repr__(self: Self) -> str:
+    def __repr__(self: Self) -> str:  # noqa: ignore[D105]
         return f"InheritanceExpression(__root__={self.__root__})"
 
-    def __str__(self: Self) -> str:
+    def __str__(self: Self) -> str:  # noqa: ignore[D105]
         return json.dumps(map(str, self.__root__))
+
+
+from .type_expression import TypeExpression

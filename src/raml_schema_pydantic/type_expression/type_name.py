@@ -4,6 +4,7 @@ import logging
 from collections import UserString
 from sys import version_info
 from typing import Any
+from typing import Dict
 from typing import NoReturn
 from typing import Optional
 from typing import overload
@@ -12,23 +13,23 @@ from typing import Tuple
 from typing import Type
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
 from pydantic import errors as PydanticErrors
 from pydantic import root_validator
 from pydantic import StrError
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
+from typing_extensions import override
 
 from .._errors import ValidationError
 from .._helpers import _ValuesType
 from ..types._type_dict import lookup_type_declaration
-from ..types.type_declaration import TypeDeclaration
-from ._base_type_expression_type import BaseTypeExpressionType
+from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ._shunt import Token
 from ._shunt import ValueNode
-from ._shunt.token_types import Token
 from ._util import *
 
-# from ..types import IType
+# from ..types.type_declaration import TypeDeclaration
+# from ._base_type_expression_type import BaseTypeExpressionType
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:
@@ -36,7 +37,8 @@ if TYPE_CHECKING:
     from regex import Pattern
 
     from typing_extensions import Self
-    from ..types.type_declaration import ITypeDeclaration
+
+    # from ..types.type_declaration import ITypeDeclaration
 else:
     if version_info < (3, 11):
         import regex as re
@@ -59,8 +61,11 @@ logger = logging.getLogger(__name__)
 LOG_LEVEL = logging.WARNING  # INFO
 
 
+# A TypeName is the non-operator token for a TypeExpression
 class TypeName(
-    ValueNode[Token],
+    # ValueNode[Token],
+    Token,
+    TypeDeclarationProtocol,
     # IType,
     # BaseTypeExpressionType,
     # UserString
@@ -72,24 +77,24 @@ class TypeName(
         `Person:` a custom type
     """
 
-    def __init__(self, value: Token | str | Any, *args, **kwargs) -> None:
-        if isinstance(value, Token):
-            super().__init__(value=value)
-        elif isinstance(value, str):
-            super().__init__(value=Token(value))
-        else:
-            raise StrError(msg_template=f"seq expected to be str was {type(value)}")
+    # def __init__(self, value: Token | str | Any, *args, **kwargs) -> None:
+    #     if isinstance(value, Token):
+    #         super().__init__(value=value)
+    #     elif isinstance(value, str):
+    #         super().__init__(value=Token(value))
+    #     else:
+    #         raise StrError(msg_template=f"seq expected to be str was {type(value)}")
 
-    @classmethod
-    def parse_obj(cls: Type[Self], obj: Any) -> Self:
-        return cls(value=obj)
+    # @classmethod
+    # def parse_obj(cls: Type[Self], obj: Any) -> Self:
+    #     return cls(value=obj)
 
-    @root_validator(pre=True)
-    def pass_str_as_value(cls, values):
-        if isinstance(values, str):
-            return {"value": values}
-        logger.info(f"Non string value {values}")
-        return values
+    # @root_validator(pre=True)
+    # def pass_str_as_value(cls, values):
+    #     if isinstance(values, str):
+    #         return {"value": values}
+    #     logger.info(f"Non string value {values}")
+    #     return values
 
     # TODO Check definition of allowed type names
     _regex: Pattern[str] = re.compile(r"^\s*(?P<typename>[\w-]*)\s*$")
@@ -146,49 +151,59 @@ class TypeName(
             raise ValidationError(errors=_errors, model=cls)
         return _instance
 
-    def as_declaration(self) -> "ITypeDeclaration":
-        """Return the type declaration identified by this name.
+    @classmethod
+    def __get_validators__(cls):
+        """Return a generator of validation functions for use as pydantic model.
 
-        Returns:
-            ITypeDeclaration: TypeDeclaration for the name
+        Yields:
+            ((values: str | Any) -> str) | ((values: str) -> str): Validation function
         """
-        try:
-            return lookup_type_declaration(self.value)
-        except KeyError:
-            return lookup_type_declaration(self)
+        yield from super().__get_validators__()
+        yield cls.validate
 
-    @property
-    def _properties(self: Self) -> Sequence[str]:
-        return self.as_declaration()._properties
+    # def as_declaration(self) -> "ITypeDeclaration":
+    #     """Return the type declaration identified by this name.
 
-    @property
-    def _facets(self: Self) -> Sequence[str]:
-        return self.as_declaration()._facets
+    #     Returns:
+    #         ITypeDeclaration: TypeDeclaration for the name
+    #     """
+    #     try:
+    #         return lookup_type_declaration(self.value)
+    #     except KeyError:
+    #         return lookup_type_declaration(self)
 
-    def as_type(self) -> Type:
-        """Return the type by looking up its declaration in the global type dict.
+    # @property
+    # def _properties(self: Self) -> Sequence[str]:
+    #     return self.as_declaration()._properties
 
-        Returns:
-            Type: Type for the name
-        """
-        return self.as_declaration().as_type()
+    # @property
+    # def _facets(self: Self) -> Sequence[str]:
+    #     return self.as_declaration()._facets
+
+    # def as_type(self) -> Type:
+    #     """Return the type by looking up its declaration in the global type dict.
+
+    #     Returns:
+    #         Type: Type for the name
+    #     """
+    #     return self.as_declaration().as_type()
 
     @root_validator
     def _register_type(cls, values: _ValuesType) -> _ValuesType:
         return values
 
     def __repr__(self) -> str:
-        return f"TypeName('{super(ValueNode,self).__str__()}')"
+        return f"TypeName('{super().__str__()}')"
 
-    def __str__(self) -> str:
-        return super(ValueNode, self).__str__()
-
-    @overload
-    def __eq__(self, other: str) -> bool:
-        ...
+    # def __str__(self) -> str:
+    #     return super(ValueNode, self).__str__()
 
     @overload
     def __eq__(self, other: Self) -> bool:
+        ...
+
+    @overload
+    def __eq__(self, other: str) -> bool:
         ...
 
     @overload
@@ -196,21 +211,25 @@ class TypeName(
         ...
 
     def __eq__(self, other: str | Self) -> bool | NoReturn:
-        if isinstance(other, str):
-            return self.value == other
         if isinstance(other, type(self)):
-            return self.value == other.value
+            return self.__str__() == other.__str__()
+        if isinstance(other, str):
+            return self.__str__() == other
         raise TypeError(
             f"Comparison only supported for `{type(self)}` and `str`",
         )
 
-    def __hash__(self: Self) -> int:
-        """Create a hash of the object for use in dictionaries.
+    # def __hash__(self: Self) -> int:
+    #     """Create a hash of the object for use in dictionaries.
 
-        Returns:
-            int: hash for looking up the object
-        """
-        return self.value.__hash__()
+    #     Returns:
+    #         int: hash for looking up the object
+    #     """
+    #     return self.value.__hash__()
+
+    @override
+    def schema(self, by_alias: bool = ..., ref_template: str = ...) -> Dict[str, Any]:  # type: ignore[assignment,override]
+        return lookup_type_declaration(self.__str__()).schema()
 
     @classmethod
     def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):

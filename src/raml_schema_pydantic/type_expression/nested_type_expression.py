@@ -3,6 +3,7 @@
 import logging
 from sys import version_info
 from typing import Any
+from typing import Dict
 from typing import ForwardRef
 from typing import overload
 from typing import Sequence
@@ -12,16 +13,18 @@ from typing import TYPE_CHECKING
 from typing import TypeVar
 
 from pydantic import errors as PydanticErrors
+from pydantic import PatternError
 from pydantic import StrError
 from pydantic.error_wrappers import ErrorList
+from typing_extensions import override
 
 from .._errors import ValidationError
+from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
 from ._base_type_expression_type import BaseTypeExpressionType
 from ._shunt import ITree  # , Tree
 from ._shunt import OperatorNode
 from ._shunt import Token
-from ._shunt.token_types import Token
-from ._util import *
+from ._util import OPERATOR_NOOP
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:
@@ -60,8 +63,7 @@ from .type_expression import TypeExpression
 class NestedTypeExpression(
     # BaseTypeExpressionType,
     OperatorNode[Token, Token],
-    # ITree,
-    # UserString, # A NestedTypeExpression is NOT a string or a UserString, but can be created from one
+    TypeDeclarationProtocol,
 ):
     # | `(type expression)`
     # | Parentheses disambiguate the expression to which an operator applies.
@@ -71,22 +73,6 @@ class NestedTypeExpression(
 
     inner: TypeExpression
     # op: ClassVar[Operator] = OPERATOR_NOOP
-
-    # def __call__(self, *args: Any, seq: Any, **kwds: Any) -> Any:
-    #     _inner: TypeExpression
-    #     _seq: str
-    #     if isinstance(seq, TypeExpression):
-    #         _seq = f"({seq})"
-    #         _inner = seq
-    #     elif isinstance(seq, BaseTypeExpressionType):
-    #         _inner = TypeExpression(seq)
-    #         _seq = f"({seq})"
-    #     elif isinstance(seq, str):
-    #         _inner = self._extract_and_parse_inner(str(seq))
-    #         assert seq.strip().startswith("(") and seq.strip().endswith(")")
-    #         _seq = seq
-    #     else:
-    #         raise TypeError(f"Unknown type {type(seq)} for {seq}")
 
     def __repr__(self) -> str:
         return f"NestedTypeExpression({self.__str__()})"
@@ -133,18 +119,23 @@ class NestedTypeExpression(
             _seq = f"({seq})"
         elif isinstance(seq, str):
             _inner = self._extract_and_parse_inner(str(seq))
-            assert seq.strip().startswith("(") and seq.strip().endswith(")")
+            if not (seq.strip().startswith("(") and seq.strip().endswith(")")):
+                raise PatternError(
+                    msg_template="Expression needs to start with `(` and end with `)`"
+                )
             _seq = seq
         else:
             raise TypeError(f"Unknown type {type(seq)} for {seq}")
 
         self.inner = _inner
         super(
-            # OperatorNode[Token, Token], self
+            # OperatorNode,  # [Token, Token],
+            # self,
         ).__init__(
             # seq=_seq,
-            symbol=Token("NOOP"),
-            children=[_inner.type_],
+            **dict(OPERATOR_NOOP),
+            # symbol=Token("NOOP"),
+            children=[_inner],
             # op=self.op,
         )
 
@@ -163,6 +154,7 @@ class NestedTypeExpression(
         _inner = _match.groupdict()["inner"]
         return TypeExpression.parse_obj(_inner)
 
+    @override
     @classmethod
     def validate(
         cls: Type[Self],
@@ -213,15 +205,6 @@ class NestedTypeExpression(
     def _properties(self: Self) -> Sequence[str]:
         return self.inner._properties()
 
-    def as_type(self) -> Type:
-        return self.inner.as_type()
-
-    # @property
-    # def inner(self):
-    #     return self.children[0]
-
-    # @classmethod
-    # def parse_obj(cls, obj: str| Any) -> Self:
-    #     if isinstance(obj, str):
-    #         return cls(obj)
-    #     raise ValueError(f"Only stringlike objects are supported, was given {obj}")
+    @override
+    def schema(self, by_alias: bool = ..., ref_template: str = ...) -> Dict[str, Any]:  # type: ignore[override,assignment]
+        return self.inner.schema()

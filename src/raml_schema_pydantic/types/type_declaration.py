@@ -40,6 +40,7 @@ from ..examples import Example
 from ..examples import Examples
 from ..xml_serialization import XMLSerialization
 from ._IType import IType
+from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 
 
 if TYPE_CHECKING:
@@ -63,7 +64,8 @@ LOG_LEVEL = logging.WARNING
 
 class GenericTypeDeclaration(
     GenericModel,
-    Generic[_T]
+    Generic[_T],
+    # TypeDeclarationProtocol
     # BaseModel
 ):
     name_: Annotated[
@@ -253,7 +255,8 @@ class GenericTypeDeclaration(
 
 class ITypeDeclaration(
     # BaseModel,
-    IType
+    IType,
+    TypeDeclarationProtocol,
 ):
     name_: Annotated[
         Optional[str],
@@ -383,14 +386,14 @@ class ITypeDeclaration(
         ...
 
     def __eq__(self: Self, other: object | Type[Self] | Mapping[str, Any]) -> bool:
-        logger.warning(f"Comparing {self.__repr__()} to {other.__repr__()}")
+        logger.warning(f"Comparing {self.__repr__()} to {repr(other)}")
         # if other.__parameters__ == _T:
         #     return all(
         #         self[_key] == other[_key] for _key in self.key if _key not in ["type_"]
         #     )
 
-        if isinstance(other, IType):
-            return self.as_type() == other.as_type()
+        # if isinstance(other, IType):
+        #     return self.as_type() == other.as_type()
 
         # TODO prevent different TypeDeclarations from being compared
         if isinstance(other, type(self)):
@@ -398,11 +401,20 @@ class ITypeDeclaration(
                 return True
 
         # FIXME
-        if self.__repr__() == other.__repr__():
+        if self.__repr__() == repr(other):
             return True
+
+        try:
+            return (
+                self.schema()
+                == other.schema()  # type: ignore[union-attr,call-arg]  # pyright: ignore[reportGeneralTypeIssues]
+            )
+        except AttributeError:
+            return False
 
         return False
 
+    # TODO evaluate
     # @abstractmethod
     # def as_type(self) -> Type:
     #     ...
@@ -423,7 +435,10 @@ class ITypeDeclaration(
         return self.name_ or str(id(self))
 
 
-class TypeDeclaration(BaseModel, ITypeDeclaration):
+class TypeDeclaration(
+    BaseModel,
+    # ITypeDeclaration
+):
     # ### Determine Default Types
 
     @classmethod
@@ -506,7 +521,11 @@ GenericTypeDeclaration.update_forward_refs()
 
 # TypeDeclaration = GenericTypeDeclaration[_Type]
 #: TypeDeclaration used inline instead of in Types Mapping
-IInlineTypeDeclaration: TypeAlias = ITypeDeclaration
+# IInlineTypeDeclaration: TypeAlias = ITypeDeclaration
+
+
+class IInlineTypeDeclaration(ITypeDeclaration, TypeDeclarationProtocol):
+    pass
 
 
 ### Inline Type Declarations

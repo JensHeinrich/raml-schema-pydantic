@@ -16,11 +16,27 @@ from ._shunt import Token
 
 _T = TypeVar("_T")
 
+
 # Operators
+# class UnionOperator(Operator[Token]):
+#     name = "Union"
+#     symbol = Token("|")
+
+
 OPERATOR_UNION: Operator[Token] = Operator(
     symbol=Token("|"),
     name="Union",
 )
+
+
+# class ArrayOperator(Operator[Token]):
+#     symbol = Token("[]")
+#     name = "Array"
+#     precedence = 5
+#     unary = True
+#     unary_position = "postfix"
+
+
 OPERATOR_ARRAY: Operator[Token] = Operator(
     symbol=Token("[]"),
     name="Array",
@@ -28,6 +44,14 @@ OPERATOR_ARRAY: Operator[Token] = Operator(
     unary=True,
     unary_position="postfix",
 )
+
+
+# class NoopOperator(Operator[Token]):
+#     symbol = Token("NOOP")
+#     name = "NOOP"
+#     unary = True
+
+
 OPERATOR_NOOP: Operator[Token] = Operator(
     symbol=Token("NOOP"),
     name="NOOP",

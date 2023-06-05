@@ -1,39 +1,23 @@
 import logging
-from enum import unique
 from typing import Annotated
 from typing import Any
 from typing import Dict
-from typing import ForwardRef
 from typing import Generic
-from typing import List
 from typing import Literal
 from typing import Mapping
 from typing import Optional
-from typing import Type
 from typing import TypeAlias
 from typing import TypeVar
-from typing import Union
 
-import pydantic
-from _pytest.logging import DEFAULT_LOG_DATE_FORMAT
-from pydantic import BaseModel
-from pydantic import conlist
-from pydantic import create_model
-from pydantic import Extra
 from pydantic import Field
 from pydantic import root_validator
 from pydantic import validator
 from pydantic.fields import ModelField
 from pydantic.generics import GenericModel
-from pydantic.main import ModelMetaclass
-from pydantic.typing import NoneType
-from pydantic.utils import GetterDict
-from typing_extensions import Self
 
-from .._helpers import debug
 from ._type_dict import _TYPE_DECLARATIONS
+from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 from .any_type import AnyType
-from .type_declaration import GenericTypeDeclaration
 from .type_declaration import IInlineTypeDeclaration
 
 # InlineTypeDeclaration = ForwardRef("InlineTypeDeclaration", is_class=True)
@@ -76,7 +60,9 @@ class ArrayType(AnyType):
     # | Indicates the type all items in the array are inherited from.
     # Can be a reference to an existing type or an inline [type declaration](#type-declarations).
     # items: Optional[Union[TypeName, InlineTypeDeclaration]]
-    items: Optional["TypeName | IInlineTypeDeclaration"] = AnyType()
+    items: Optional[
+        "TypeName | IInlineTypeDeclaration | TypeDeclarationProtocol"
+    ] = AnyType()
 
     # | minItems? |
     # Minimum amount of items in array.
@@ -119,41 +105,11 @@ class ArrayType(AnyType):
 
         return _values
 
-    def as_type(self: "Self") -> Type:
-        """Return the type represented by the RAML definition.
-
-        Returns:
-            Type: Type described by the TypeDeclaration
-        """
-        # FIXME: _Inner: Type
-        _Inner = self.items.as_type() if self.items else Any
-
-        # class _Array(BaseModel):
-        #     __root__: List[_Inner] = Field(max_items=self.maxItems,min_items=self.minItems,unique_items=self.uniqueItems)
-
-        #     item_type=self.items.as_type() if self.items else Any,
-        #     min_items=self.minItems,
-        #     max_items=self.maxItems,
-        #     unique_items=self.uniqueItems,
-        # )
-        namespace: Dict[str, Any] = dict()
-        return type("ArrayTypeTypeValue", (ArrayTypeType,), namespace)
-
-        return create_model(
-            f"{self.type_name}",
-            __root__=Field(
-                conlist(
-                    item_type=self.items.as_type() if self.items else Any,
-                    min_items=self.minItems,
-                    max_items=self.maxItems,
-                    unique_items=self.uniqueItems,
-                ),
-            ),
-        )
-        return super().as_type()
+    @classmethod
+    def __modify_schema__(cls, field_schema: dict[str, Any], field: ModelField | None):
+        field_schema["type"] = "array"
 
 
-# from ..type_expression import ArrayTypeExpression
 from ..type_expression.type_name import TypeName
 from ..types.type_declaration import IInlineTypeDeclaration
 

@@ -1,6 +1,5 @@
 """Global dictionary for types."""
 from typing import Dict
-from typing import NoReturn
 from typing import Sequence
 from typing import Tuple
 from typing import TYPE_CHECKING
@@ -11,6 +10,7 @@ if TYPE_CHECKING:
     from collections import UserString
     from ..type_expression import TypeName
     from .type_declaration import ITypeDeclaration
+    from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 
 
 import logging
@@ -21,11 +21,14 @@ logger = logging.getLogger(__name__)
 # Sources:
 # - https://stackoverflow.com/questions/1977362/how-to-create-module-wide-variables-in-python
 
-_TYPE_DECLARATIONS: Dict[Union[str, "UserString", "TypeName"], "ITypeDeclaration"] = {}
+_TYPE_DECLARATIONS: Dict[
+    Union[str, "UserString", "TypeName"], "TypeDeclarationProtocol"
+] = {}
 
 
 def register_type_declaration(
-    type_name: "str | UserString | TypeName", type: "ITypeDeclaration"
+    type_name: "str | UserString | TypeName",
+    type: "TypeDeclarationProtocol",  # "ITypeDeclaration"
 ) -> None:
     """Register a type declaration globally.
 
@@ -52,7 +55,7 @@ def register_type_declarations(
 
 def lookup_type_declaration(
     type_name: "str | UserString | TypeName",
-) -> "ITypeDeclaration | NoReturn":
+) -> "TypeDeclarationProtocol":
     """Lookup a type declaration in the global dictionary.
 
     Args:

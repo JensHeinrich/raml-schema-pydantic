@@ -1,12 +1,16 @@
 """Module for RAML types."""
+from typing import Any
+from typing import Dict
 from typing import Type
 from typing import TypeAlias
 
 from pydantic import BaseModel
+from typing_extensions import override
 from typing_extensions import Self
 
 from ._IType import IType
 from ._type_dict import _TYPE_DECLARATIONS
+from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 from .any_type import AnyType
 from .array_type import ArrayType
 from .object_type import ObjectType
@@ -26,16 +30,22 @@ from .scalar_types import TimeOnlyType
 from .type_declaration import GenericTypeDeclaration
 from .type_declaration import IInlineTypeDeclaration
 from .type_declaration import ITypeDeclaration
+from .type_declaration import TypeDeclaration
 from .union_type import UnionType
 
 # from ._type_dict import register_type_declarations
 
 
-class TypeContainer(BaseModel, IType):
+class TypeContainer(
+    BaseModel,
+    IType,
+    TypeDeclarationProtocol,
+):
     __root__: ScalarTypeContainer | ArrayType | ObjectType | AnyType
 
-    def as_type(self: Self) -> Type:
-        return self.__root__.as_type()
+    @override
+    def schema(self, by_alias: bool = ..., ref_template: str = ...) -> Dict[str, Any]:  # type: ignore[assignment,override]
+        return self.__root__.schema()
 
 
 InlineTypeDeclaration: TypeAlias = TypeContainer

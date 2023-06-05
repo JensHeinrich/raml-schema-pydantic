@@ -1,6 +1,7 @@
 """Module for the BaseType."""
 from typing import Annotated
 from typing import Any
+from typing import Collection
 from typing import Generator
 from typing import Literal
 from typing import Optional
@@ -16,8 +17,8 @@ from pydantic.typing import AnyCallable
 from typing_extensions import Self
 
 from .._helpers import debug
-from ._IType import TypeDeclarationProtocol
 from ._type_dict import register_type_declaration
+from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 from .type_declaration import ITypeDeclaration
 
 
@@ -86,21 +87,21 @@ class AnyType(
 
     # TODO Check wether facets need to be passed to types
     @property
-    def _facets(self) -> Sequence[str]:
+    def _facets(self) -> Collection[str]:
         return list(self.__fields_set__)
 
     _debug = root_validator(pre=True, allow_reuse=True)(debug)
 
-    def as_type(self) -> Type:
-        """Return the type represented by the RAML definition.
+    # def as_type(self) -> Type:
+    #     """Return the type represented by the RAML definition.
 
-        Returns:
-            Type: Type described by the TypeDeclaration
-        """
-        return type("AnyTypeTypeValue", (AnyTypeType,), {})
+    #     Returns:
+    #         Type: Type described by the TypeDeclaration
+    #     """
+    #     return type("AnyTypeTypeValue", (AnyTypeType,), {})
 
     @property
-    def _properties(self: Self) -> Sequence[str]:
+    def _properties(self: Self) -> Collection[str]:
         return list(self.__fields_set__ - {"type_"})
 
 

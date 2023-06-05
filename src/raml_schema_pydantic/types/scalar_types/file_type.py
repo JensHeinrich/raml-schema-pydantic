@@ -4,6 +4,7 @@ import binascii
 import logging
 from typing import Annotated
 from typing import Any
+from typing import Collection
 from typing import List
 from typing import Literal
 from typing import Optional
@@ -271,7 +272,7 @@ class FileType(AnyType):
         )
 
     @property
-    def _facets(self) -> Sequence[str]:
+    def _facets(self) -> Collection[str]:
         return (
             {
                 "minLength",
@@ -284,7 +285,7 @@ class FileType(AnyType):
 
     @property
     def _properties(self: Self) -> Sequence[str]:
-        return {}
+        return ()
 
 
 register_type_declaration("datetime-only", FileType())

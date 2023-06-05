@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated
 from typing import Any
+from typing import Collection
 from typing import Dict
 from typing import Literal
 from typing import Optional
@@ -161,11 +162,11 @@ class ObjectType(AnyType):
         )
 
     @property
-    def _properties(self: "ObjectType") -> Sequence[str]:
+    def _properties(self: "ObjectType") -> Collection[str]:
         return getattr(self.properties, "keys", [])
 
     @property
-    def _facets(self: Self) -> Sequence[str]:
+    def _facets(self: Self) -> Collection[str]:
         return list(self.__fields_set__ - {"properties"})
 
 

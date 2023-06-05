@@ -2,6 +2,7 @@
 import logging
 from typing import Annotated
 from typing import Any
+from typing import Collection
 from typing import Dict
 from typing import Literal
 from typing import Optional
@@ -45,12 +46,12 @@ class BooleanType(AnyType):
         return type("BooleanType", (bool,), namespace)
 
     @property
-    def _facets(self: Self) -> Sequence[str]:
-        return {}
+    def _facets(self: Self) -> Collection[str]:
+        return ()
 
     @property
-    def _properties(self: Self) -> Sequence[str]:
-        return {}
+    def _properties(self: Self) -> Collection[str]:
+        return ()
 
 
 register_type_declaration("boolean", BooleanType())
