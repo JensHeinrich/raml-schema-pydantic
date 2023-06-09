@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from abc import abstractmethod
 from contextlib import suppress
 from typing import Any
@@ -8,11 +7,7 @@ from typing import Collection
 from typing import Dict
 from typing import Iterable
 from typing import Protocol
-from typing import Sequence
-from typing import Type
 from typing import TYPE_CHECKING
-
-from pydantic import BaseModel
 
 from ._TypeDeclarationProtocol import TypeDeclarationProtocol as TypeDeclarationProtocol
 
@@ -35,14 +30,14 @@ class RamlTypeProto(Iterable, TypeDeclarationProtocol, Protocol):
 
     @property
     @abstractmethod
-    def _properties(self: Self) -> Sequence[str]:
+    def _properties(self: Self) -> Collection[str]:
         ...
 
     #   - **Facets** are special _configurations_. You specialize types based on characteristics of facet values.
     #     Examples: minLength, maxLength
     @property
     @abstractmethod
-    def _facets(self: Self) -> Sequence[str]:
+    def _facets(self: Self) -> Collection[str]:
         ...
 
     # - Only object types can declare properties. All types can declare facets.
@@ -93,7 +88,12 @@ class RamlTypeProto(Iterable, TypeDeclarationProtocol, Protocol):
         return super().__eq__(o)  # TODO FIXME
 
 
-class IType(ABC, Iterable, TypeDeclarationProtocol):
+class IType(
+    # ABC, cls(super_types=cls._extract_and_parse_types(v))
+    # Iterable,
+    TypeDeclarationProtocol,
+    Protocol,
+):
     """Interface for objects representing types."""
 
     # RAML Types in a nutshell:
@@ -107,14 +107,14 @@ class IType(ABC, Iterable, TypeDeclarationProtocol):
     #   - **Properties** are regular, object oriented properties.
     @property
     @abstractmethod
-    def _properties(self: Self) -> Collection[str]:
+    def _properties(self: Self) -> Collection[str]:  # FIXME Change type
         ...
 
     #   - **Facets** are special _configurations_. You specialize types based on characteristics of facet values.
     #     Examples: minLength, maxLength
     @property
     @abstractmethod
-    def _facets(self: Self) -> Collection[str]:
+    def _facets(self: Self) -> Collection[str]:  # FIXME Change type
         ...
 
     # - Only object types can declare properties. All types can declare facets.
@@ -146,11 +146,12 @@ class IType(ABC, Iterable, TypeDeclarationProtocol):
             bool: equality of interfaces
         """
         if hasattr(o, "name_") and hasattr(self, "name_"):
-            return self.name_ == o.name_  # pyright: ignore [reportGeneralTypeIssues]
+            return getattr(self, "name_") == getattr(o, "name_")
+            # self.name_ == o.name_ # pyright: ignore [reportGeneralTypeIssues]
 
-        if isinstance(o, IType):
-            return self.schema() == o.schema()
-            return self.as_type() == o.as_type()
+        if hasattr(o, "schema"):
+            return self.schema() == getattr(o, "schema", lambda: {})()
+
         # if isinstance(o, type):
         #     return self.as_type() == o
         return super().__eq__(o)  # TODO FIXME

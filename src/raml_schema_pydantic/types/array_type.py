@@ -6,6 +6,7 @@ from typing import Generic
 from typing import Literal
 from typing import Mapping
 from typing import Optional
+from typing import TYPE_CHECKING
 from typing import TypeAlias
 from typing import TypeVar
 
@@ -110,8 +111,9 @@ class ArrayType(AnyType):
         field_schema["type"] = "array"
 
 
-from ..type_expression.type_name import TypeName
-from ..types.type_declaration import IInlineTypeDeclaration
+if TYPE_CHECKING:
+    from .type_expression.type_name import TypeName
+    from .type_declaration import IInlineTypeDeclaration
 
 _TYPE_DECLARATIONS.update(
     {

@@ -15,13 +15,13 @@ from pydantic import PydanticTypeError
 from pydantic.fields import ModelField
 from typing_extensions import Self
 
-from .._helpers import debug
-from ..pydantic_interface import PydanticValidatable
-from ..types._IType import IType
+from ..._helpers import debug
+from ...pydantic_interface import PydanticValidatable
+from .._IType import IType
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:
-    from ..pydantic_interface import ValidatorCallable
+    from ...pydantic_interface import ValidatorCallable
 
     pass
 else:

@@ -20,10 +20,10 @@ from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
 from typing_extensions import override
 
-from .._errors import ValidationError
-from .._helpers import _ValuesType
-from ..types._type_dict import lookup_type_declaration
-from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ..._errors import ValidationError
+from ..._helpers import _ValuesType
+from .._type_dict import lookup_type_declaration
+from .._TypeDeclarationProtocol import TypeDeclarationProtocol
 from ._shunt import Token
 from ._shunt import ValueNode
 from ._util import *
@@ -85,9 +85,9 @@ class TypeName(
     #     else:
     #         raise StrError(msg_template=f"seq expected to be str was {type(value)}")
 
-    # @classmethod
-    # def parse_obj(cls: Type[Self], obj: Any) -> Self:
-    #     return cls(value=obj)
+    @classmethod
+    def parse_obj(cls: Type[Self], obj: Any) -> Self:
+        return cls(obj)
 
     # @root_validator(pre=True)
     # def pass_str_as_value(cls, values):
@@ -219,13 +219,13 @@ class TypeName(
             f"Comparison only supported for `{type(self)}` and `str`",
         )
 
-    # def __hash__(self: Self) -> int:
-    #     """Create a hash of the object for use in dictionaries.
+    def __hash__(self: Self) -> int:
+        """Create a hash of the object for use in dictionaries.
 
-    #     Returns:
-    #         int: hash for looking up the object
-    #     """
-    #     return self.value.__hash__()
+        Returns:
+            int: hash for looking up the object
+        """
+        return str(self).__hash__()
 
     @override
     def schema(self, by_alias: bool = ..., ref_template: str = ...) -> Dict[str, Any]:  # type: ignore[assignment,override]

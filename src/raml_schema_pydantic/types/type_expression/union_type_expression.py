@@ -10,6 +10,7 @@ from typing import Any
 from typing import cast
 from typing import ClassVar
 from typing import Dict
+from typing import ForwardRef
 from typing import Iterable
 from typing import List
 from typing import Literal
@@ -34,12 +35,12 @@ from .type_name import TypeName
 Token: TypeAlias = TypeName
 # from ._shunt import Token
 
-from .._errors import ValidationError
-from .._helpers import _ValuesType
-from .._helpers import debug
-from .._helpers import debug_advanced
-from ..types._IType import IType, TypeDeclarationProtocol
-from ..types.union_type import UnionType
+from ..._errors import ValidationError
+from ..._helpers import _ValuesType
+from ..._helpers import debug
+from ..._helpers import debug_advanced
+from .._IType import IType, TypeDeclarationProtocol
+from ..union_type import UnionType
 
 # from ._base_type_expression_type import BaseTypeExpressionType
 from ._shunt import ITree  # , Tree
@@ -72,11 +73,11 @@ else:
 if TYPE_CHECKING:
     from pydantic.error_wrappers import ErrorList
     from pydantic.fields import ValidateReturn
-    from pydantic.fields import ModelField
+from pydantic.fields import ModelField
 
 
-from .type_expression import TypeExpression
-
+# from .type_expression import TypeExpression
+TypeExpression = ForwardRef("TypeExpression")
 logger = logging.getLogger(__name__)
 LOG_LEVEL = logging.WARNING  # INFO
 

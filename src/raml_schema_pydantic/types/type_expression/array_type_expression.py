@@ -7,6 +7,7 @@ import logging
 from sys import version_info
 from typing import Any
 from typing import Dict
+from typing import ForwardRef
 from typing import List
 from typing import Literal
 from typing import Optional
@@ -22,10 +23,12 @@ from pydantic import validator
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
 
-from .._errors import ValidationError
-from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ..._errors import ValidationError
+from .._TypeDeclarationProtocol import TypeDeclarationProtocol
 from ._shunt import shunt
-from .type_expression import TypeExpression
+
+# from .type_expression import TypeExpression
+TypeExpression = ForwardRef("TypeExpression")
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:

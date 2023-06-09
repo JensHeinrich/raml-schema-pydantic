@@ -20,6 +20,8 @@ from .._helpers import debug
 from ._type_dict import register_type_declaration
 from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 from .type_declaration import ITypeDeclaration
+from .type_declaration import ProtocolModel
+from .type_declaration import TypeDeclarationModel
 
 
 class AnyTypeType:
@@ -59,9 +61,10 @@ class AnyTypeType:
 class AnyType(
     BaseModel,
     ITypeDeclaration,
-    TypeDeclarationProtocol
+    TypeDeclarationProtocol,
     # BaseModel
     # GenericTypeDeclaration # FIXME
+    metaclass=ProtocolModel,
 ):
     """Every type, whether built-in or user-defined, has the any type at the root of its inheritance tree."""
 
@@ -88,9 +91,11 @@ class AnyType(
     # TODO Check wether facets need to be passed to types
     @property
     def _facets(self) -> Collection[str]:
-        return list(self.__fields_set__)
+        return self.__fields_set__
 
-    _debug = root_validator(pre=True, allow_reuse=True)(debug)
+    @root_validator(pre=True, allow_reuse=True)
+    def _debug(cls, values):
+        return debug(cls, values)
 
     # def as_type(self) -> Type:
     #     """Return the type represented by the RAML definition.
@@ -101,8 +106,8 @@ class AnyType(
     #     return type("AnyTypeTypeValue", (AnyTypeType,), {})
 
     @property
-    def _properties(self: Self) -> Collection[str]:
-        return list(self.__fields_set__ - {"type_"})
+    def _properties(self) -> Collection[str]:
+        return self.__fields_set__ - {"type_"}
 
 
 register_type_declaration("AnyType", AnyType())

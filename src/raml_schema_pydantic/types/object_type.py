@@ -3,6 +3,7 @@ from typing import Annotated
 from typing import Any
 from typing import Collection
 from typing import Dict
+from typing import ForwardRef
 from typing import Literal
 from typing import Optional
 from typing import Sequence
@@ -20,12 +21,15 @@ from typing_extensions import Self
 
 from .._helpers import _ValuesType
 from .._helpers import debug
-from ..properties_declaration import PropertiesDeclaration
-from ..properties_declaration import PropertyName
-from ..type_expression import TypeName
+
+PropertiesDeclaration = ForwardRef("PropertiesDeclaration")
+PropertyName = ForwardRef("PropertyName")
+# from ..properties_declaration import PropertiesDeclaration
+# from ..properties_declaration import PropertyName
 from ._type_dict import _TYPE_DECLARATIONS
 from ._type_dict import register_type_declaration
 from .any_type import AnyType
+from .type_expression import TypeName
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +59,7 @@ class ObjectType(AnyType):
 
     # | properties?
     # | The [properties](#property-declarations) that instances of this type can or must have.
-    properties: Optional[PropertiesDeclaration] = None
+    properties: "Optional[PropertiesDeclaration]" = None
     # | minProperties?
     # | The minimum number of properties allowed for instances of this type.
     minProperties: Optional[int] = None

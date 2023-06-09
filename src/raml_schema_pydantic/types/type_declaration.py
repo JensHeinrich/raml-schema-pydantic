@@ -3,15 +3,21 @@
 # Here are the facets that all type declarations can have;
 # certain type declarations might have other facets:
 import logging
+import re
 from abc import abstractmethod
 from typing import Annotated
 from typing import Any
+from typing import Callable
+from typing import Collection
+from typing import Dict
 from typing import ForwardRef
 from typing import Generic
 from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import overload
+from typing import Protocol
+from typing import runtime_checkable
 from typing import Type
 from typing import TYPE_CHECKING
 from typing import TypeAlias
@@ -23,6 +29,8 @@ from pydantic import Field
 from pydantic import root_validator
 from pydantic import validator
 from pydantic.generics import GenericModel
+from pydantic.main import ModelMetaclass
+from typing_extensions import override
 from typing_extensions import Self
 
 from .._config import DefaultConfig
@@ -38,6 +46,7 @@ from .._types import JsonSchema
 from .._types import XMLType
 from ..examples import Example
 from ..examples import Examples
+from ..pydantic_interface import PydanticValidatable
 from ..xml_serialization import XMLSerialization
 from ._IType import IType
 from ._TypeDeclarationProtocol import TypeDeclarationProtocol
@@ -90,7 +99,7 @@ class GenericTypeDeclaration(
     # Deprecated - API definitions SHOULD use the "type" facet because the "schema" alias for that facet name might be removed in a future RAML version.
     # The "type" facet supports XML and JSON schemas.
     schema_: Annotated[
-        "Optional[TypeName]",
+        "Optional[str]",  # "Optional[TypeName]", # FIXME
         Field(
             alias="schema",
             include=False,
@@ -108,7 +117,7 @@ class GenericTypeDeclaration(
     type_: Annotated[
         Optional[
             Union[
-                "TypeExpression",
+                str,  # "TypeExpression",  # TODO
                 # TypeName,
                 # | GenericTypeDeclaration  # TypeDeclaration
                 # | BuiltinTypeName
@@ -253,10 +262,17 @@ class GenericTypeDeclaration(
         extra = Extra.allow
 
 
+class ProtocolModel(ModelMetaclass, type(Protocol)):
+    pass
+
+
+@runtime_checkable
 class ITypeDeclaration(
     # BaseModel,
     IType,
     TypeDeclarationProtocol,
+    Protocol,
+    # metaclass=ProtocolModel,
 ):
     name_: Annotated[
         Optional[str],
@@ -266,7 +282,7 @@ class ITypeDeclaration(
     ] = None
 
     # | default?
-    # | A default value for a type.
+    # | A default value gfor a type.
     # When an API request is completely missing the instance of a type, for example when a query parameter described by a type is entirely missing from the request, then the API must act as if the API client had sent an instance of that type with the instance value being the value in the default facet.
     # Similarly, when the API response is completely missing the instance of a type, the client must act as if the API server had returned an instance of that type with the instance value being the value in the default facet.
     # A special case is made for URI parameters: for these, the client MUST substitute the value in the default facet if no instance of the URI parameter was given.
@@ -287,9 +303,10 @@ class ITypeDeclaration(
             exclude=True,
         ),
     ] = None
-    _deprecate_schema_key = root_validator(pre=True, allow_reuse=True)(
-        deprecate_schema_key
-    )
+
+    @root_validator(pre=True, allow_reuse=True)
+    def _deprecate_schema_key(cls, values):
+        return deprecate_schema_key(cls, values)
 
     # | type?
     # | The type which the current type extends or just wraps.
@@ -300,7 +317,7 @@ class ITypeDeclaration(
     type_: Annotated[
         Optional[
             Union[
-                "TypeExpression",
+                str,  # "TypeExpression", # TODO
                 # TypeName,
                 # | GenericTypeDeclaration  # TypeDeclaration
                 # | BuiltinTypeName
@@ -314,10 +331,11 @@ class ITypeDeclaration(
             alias="type",
         ),
     ] = None
+
     # The "schema" and "type" facets are mutually exclusive and synonymous: processors MUST NOT allow both to be specified, explicitly or implicitly, inside the same type declaration.
-    _mutually_exclusive_schema_and_type = root_validator(pre=True, allow_reuse=True)(
-        mutually_exclusive_schema_and_type
-    )
+    @root_validator(pre=True, allow_reuse=True)
+    def _mutually_exclusive_schema_and_type(cls, values):
+        return mutually_exclusive_schema_and_type(cls, values)
 
     # | example?
     # | An example of an instance of this type that can be used, for example, by documentation generators to generate sample values for an object of this type.
@@ -343,12 +361,26 @@ class ITypeDeclaration(
     # | [Annotations](#annotations) to be applied to this API.
     # An annotation is a map having a key that begins with "(" and ends with ")" where the text enclosed in parentheses is the annotation name, and the value is an instance of that annotation.
     annotations_: "Optional[Annotations]" = None
-    _gather_annotations = root_validator(pre=True, allow_reuse=True)(gather_annotations)
+
+    @root_validator(pre=True, allow_reuse=True)
+    def _gather_annotations(cls, values):
+        return gather_annotations(cls, values)
 
     # | facets?
     # | A map of additional, user-defined restrictions that will be inherited and applied by any extending subtype.
     # See section [User-defined Facets](#user-defined-facets) for more information.
     facets: Optional[Facets] = None
+
+    def _facets(self: Self) -> Collection[str]:  # type: ignore[override]
+        return (self.facets or {}).keys()
+
+    def _properties(self: Self) -> Collection[str]:  # type: ignore[override]
+        return (getattr(self, "properties", {})).keys()
+
+    @abstractmethod
+    def schema(self) -> Dict[str, Any]:  # type: ignore[override]
+        ...
+
     # | xml?
     # | The capability to configure [XML serialization of this type instance](#xml-serialization-of-type-instances).
     xml: Optional[XMLSerialization] = None
@@ -358,16 +390,17 @@ class ITypeDeclaration(
     # The value is an array containing representations of these possible values; an instance of this type MUST be equal to one of these values.
     enum: Optional[List[Any]] = None
 
-    _debug_pre = root_validator(pre=True, allow_reuse=True)(
-        lambda cls, values: debug_advanced(
+    @root_validator(pre=True, allow_reuse=True)
+    def _debug_pre(cls, values):
+        return debug_advanced(
             cls=cls, values=values, pre=True, caller="GenericTypeDeclaration"
         )
-    )
-    _debug_post = root_validator(pre=False, allow_reuse=True)(
-        lambda cls, values: debug_advanced(
+
+    @root_validator(pre=False, allow_reuse=True)
+    def _debug_post(cls, values):
+        return debug_advanced(
             cls=cls, values=values, pre=False, caller="GenericTypeDeclaration"
         )
-    )
 
     @validator("examples", always=True, check_fields=False)  # FIXME
     def mutually_exclusive_example_and_examples(cls, v, values):
@@ -375,44 +408,46 @@ class ITypeDeclaration(
             raise ValueError("'example' and 'examples' are mutually exclusive.")
         return v
 
-    _debug = root_validator(pre=True, allow_reuse=True)(debug)
+    @root_validator(pre=True, allow_reuse=True)
+    def _debug(cls, values):
+        return debug(cls, values)
 
-    @overload
-    def __eq__(self: Self, other: Self | Mapping[str, Any]) -> bool:
-        ...
+    # @overload
+    # def __eq__(self: Self, other: Self | Mapping[str, Any]) -> bool:
+    #     ...
 
-    @overload
-    def __eq__(self: Self, other: object) -> bool:
-        ...
+    # @overload
+    # def __eq__(self: Self, other: object) -> bool:
+    #     ...
 
-    def __eq__(self: Self, other: object | Type[Self] | Mapping[str, Any]) -> bool:
-        logger.warning(f"Comparing {self.__repr__()} to {repr(other)}")
-        # if other.__parameters__ == _T:
-        #     return all(
-        #         self[_key] == other[_key] for _key in self.key if _key not in ["type_"]
-        #     )
+    # def __eq__(self: Self, other: object | Type[Self] | Mapping[str, Any]) -> bool:
+    #     logger.warning(f"Comparing {self.__repr__()} to {repr(other)}")
+    #     # if other.__parameters__ == _T:
+    #     #     return all(
+    #     #         self[_key] == other[_key] for _key in self.key if _key not in ["type_"]
+    #     #     )
 
-        # if isinstance(other, IType):
-        #     return self.as_type() == other.as_type()
+    #     # if isinstance(other, IType):
+    #     #     return self.as_type() == other.as_type()
 
-        # TODO prevent different TypeDeclarations from being compared
-        if isinstance(other, type(self)):
-            if dict(self) == dict(other):
-                return True
+    #     # TODO prevent different TypeDeclarations from being compared
+    #     if isinstance(other, type(self)):
+    #         if dict(self) == dict(other):
+    #             return True
 
-        # FIXME
-        if self.__repr__() == repr(other):
-            return True
+    #     # FIXME
+    #     if self.__repr__() == repr(other):
+    #         return True
 
-        try:
-            return (
-                self.schema()
-                == other.schema()  # type: ignore[union-attr,call-arg]  # pyright: ignore[reportGeneralTypeIssues]
-            )
-        except AttributeError:
-            return False
+    #     try:
+    #         return (
+    #             self.schema()
+    #             == other.schema()  # type: ignore[union-attr,call-arg]  # pyright: ignore[reportGeneralTypeIssues]
+    #         )
+    #     except AttributeError:
+    #         return False
 
-        return False
+    #     return False
 
     # TODO evaluate
     # @abstractmethod
@@ -435,9 +470,11 @@ class ITypeDeclaration(
         return self.name_ or str(id(self))
 
 
-class TypeDeclaration(
+class TypeDeclarationModel(
     BaseModel,
-    # ITypeDeclaration
+    ITypeDeclaration,
+    TypeDeclarationProtocol,
+    metaclass=ProtocolModel,
 ):
     # ### Determine Default Types
 
@@ -509,8 +546,9 @@ class TypeDeclaration(
 #     def __init__(self, *args, **kwargs):
 #         super().__init__(*args,**kwargs)
 
-from ..type_expression.type_name import TypeName
-from ..type_expression.type_expression import TypeExpression
+# if TYPE_CHECKING:
+#     from .type_expression.type_name import TypeName
+#     from .type_expression.type_expression import TypeExpression
 
 # TypeDeclaration = GenericTypeDeclaration[Any]
 
@@ -524,8 +562,16 @@ GenericTypeDeclaration.update_forward_refs()
 # IInlineTypeDeclaration: TypeAlias = ITypeDeclaration
 
 
-class IInlineTypeDeclaration(ITypeDeclaration, TypeDeclarationProtocol):
-    pass
+class IInlineTypeDeclaration(
+    BaseModel,
+    ITypeDeclaration,
+    TypeDeclarationProtocol,
+    PydanticValidatable,
+    metaclass=ProtocolModel,
+):
+    @override
+    def _properties(self: Self) -> Collection[str]:  # type: ignore[override]
+        return getattr(self, "properties", {}).keys()
 
 
 ### Inline Type Declarations
@@ -541,4 +587,4 @@ class IInlineTypeDeclaration(ITypeDeclaration, TypeDeclarationProtocol):
 #     ] = None
 
 
-TypeDeclaration.update_forward_refs()
+TypeDeclarationModel.update_forward_refs()

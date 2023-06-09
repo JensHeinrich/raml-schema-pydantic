@@ -42,7 +42,9 @@ class IntegerType(NumberType):
     ] = "integer"
 
     @validator("minimum", "maximum", "multipleOf")
-    def sanity_check_numbers(cls, v: int | float | Any, field: "ModelField") -> int:
+    def sanity_check_numbers(
+        cls, v: int | float | Any, field: "ModelField"
+    ) -> int | None:
         """Validate the facets as integers.
 
         Args:
@@ -55,7 +57,9 @@ class IntegerType(NumberType):
         Returns:
             Self: instance of the class
         """
-        if v:
+        if v is None:
+            return v
+        elif v:
             if v % 1 != 0:
                 raise IntegerError
         return int(v)
@@ -68,9 +72,9 @@ class IntegerType(NumberType):
         """
         # TODO Remove annotation after https://github.com/pydantic/pydantic/pull/5499 is merged
         return conint(
-            ge=self.minimum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
-            le=self.maximum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
-            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            ge=int(self.minimum) if self.minimum is not None else None,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+            le=int(self.maximum) if self.maximum is not None else None,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
         )
 
 

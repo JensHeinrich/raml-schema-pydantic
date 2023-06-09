@@ -1,5 +1,6 @@
 """Module for RAML types."""
 from typing import Any
+from typing import Collection
 from typing import Dict
 from typing import Type
 from typing import TypeAlias
@@ -30,28 +31,37 @@ from .scalar_types import TimeOnlyType
 from .type_declaration import GenericTypeDeclaration
 from .type_declaration import IInlineTypeDeclaration
 from .type_declaration import ITypeDeclaration
-from .type_declaration import TypeDeclaration
+from .type_declaration import ProtocolModel
+from .type_declaration import TypeDeclarationModel
+from .type_expression import ArrayTypeExpression as ArrayTypeExpression
+from .type_expression import TypeExpression
+from .type_expression import TypeExpression as TypeExpression
+from .type_expression import TypeName
+from .type_expression import TypeName as TypeName
+from .type_expression import UnionTypeExpression as UnionTypeExpression
 from .union_type import UnionType
 
 # from ._type_dict import register_type_declarations
 
 
-class TypeContainer(
-    BaseModel,
-    IType,
-    TypeDeclarationProtocol,
-):
+class TypeContainer(BaseModel, IType, TypeDeclarationProtocol, metaclass=ProtocolModel):
     __root__: ScalarTypeContainer | ArrayType | ObjectType | AnyType
 
     @override
     def schema(self, by_alias: bool = ..., ref_template: str = ...) -> Dict[str, Any]:  # type: ignore[assignment,override]
         return self.__root__.schema()
 
+    def _properties(self: Self) -> Collection[str]:
+        return self.__root__._properties
+
+    def _facets(self: Self) -> Collection[str]:
+        return self.__root__._facets
+
 
 InlineTypeDeclaration: TypeAlias = TypeContainer
 
 
-ArrayType.update_forward_refs()
+ArrayType.update_forward_refs(TypeName=TypeName, TypeExpression=TypeExpression)
 
 
 # register_type_declarations(
@@ -97,4 +107,10 @@ __all__ = [
     "ITypeDeclaration",
     "IInlineTypeDeclaration",
     "GenericTypeDeclaration",
+    "TypeExpression",
+    "TypeName",
+    "ArrayTypeExpression",
+    "TypeName",
+    "TypeExpression",
+    "UnionTypeExpression",
 ]

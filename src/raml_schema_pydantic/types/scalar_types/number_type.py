@@ -5,6 +5,7 @@ from typing import Annotated
 from typing import Literal
 from typing import Optional
 from typing import Type
+from typing import TypeVar
 
 from pydantic import confloat
 from pydantic import Field
@@ -73,9 +74,9 @@ class NumberType(AnyType):
         """
         # TODO Remove annotation after https://github.com/pydantic/pydantic/pull/5499 is merged
         return confloat(
-            ge=self.minimum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
-            le=self.maximum,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
-            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: reportGeneralTypeIssues=false
+            ge=self.minimum,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+            le=self.maximum,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
+            multiple_of=self.multipleOf,  # type: ignore[arg-type] # pyright: ignore[reportGeneralTypeIssues]
         )
 
 

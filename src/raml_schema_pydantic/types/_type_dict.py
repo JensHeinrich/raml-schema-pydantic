@@ -8,7 +8,7 @@ from typing import Union
 
 if TYPE_CHECKING:
     from collections import UserString
-    from ..type_expression import TypeName
+    from .type_expression import TypeName
     from .type_declaration import ITypeDeclaration
     from ._TypeDeclarationProtocol import TypeDeclarationProtocol
 
@@ -28,7 +28,7 @@ _TYPE_DECLARATIONS: Dict[
 
 def register_type_declaration(
     type_name: "str | UserString | TypeName",
-    type: "TypeDeclarationProtocol",  # "ITypeDeclaration"
+    type_declaration: "TypeDeclarationProtocol",  # "ITypeDeclaration"
 ) -> None:
     """Register a type declaration globally.
 
@@ -50,7 +50,7 @@ def register_type_declarations(
     ]
 ) -> None:
     for type_name, type in type_declarations:
-        register_type_declaration(type_name=type_name, type=type)
+        register_type_declaration(type_name=type_name, type_declaration=type)
 
 
 def lookup_type_declaration(

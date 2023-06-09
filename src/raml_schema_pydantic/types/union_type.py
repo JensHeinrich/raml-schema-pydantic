@@ -1,23 +1,19 @@
+"""Module for Union Types."""
 # from __future__ import annotations
 import logging
-from typing import Annotated
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Self
 from typing import Sequence
-from typing import Type
 from typing import TYPE_CHECKING
-from typing import Union
 
 from pydantic import BaseModel
-from pydantic import create_model
-from pydantic import Field
 from pydantic import validator
 from pydantic.errors import ListMinLengthError
 from typing_extensions import override
 
 from ._TypeDeclarationProtocol import TypeDeclarationProtocol
+from .type_declaration import ProtocolModel
 
 # from ..type_expression import UnionTypeExpression
 # from .any_type import AnyType
@@ -29,9 +25,11 @@ logger = logging.getLogger(__name__)
 class UnionType(
     BaseModel,
     TypeDeclarationProtocol,
+    metaclass=ProtocolModel
     # AnyType
 ):
-    # A union type MAY be used to allow instances of data to be described by any of several types.
+    """A union type MAY be used to allow instances of data to be described by any of several types."""
+
     # A union type MUST be declared via a type expression that combines 2 or more types delimited by pipe (`|`) symbols;
     # type_: Annotated[
     #     UnionTypeExpression,
@@ -65,11 +63,11 @@ class UnionType(
         # More generally, an instance of a type that has a union type in its type hierarchy SHALL be considered valid if and only if it is a valid instance of at least one of the super types obtained by expanding all unions in that type hierarchy.
         return {"anyOf": [t.schema for t in self.super_types]}
 
-    class Config:
+    class Config:  # type: ignore[D106]
         # Such an instance is deserialized by performing this expansion and then matching the instance against all the super types, starting from the left-most and proceeding to the right;
         # the first successfully-matching base type is used to deserialize the instance.
         smart_union = False
 
 
 if TYPE_CHECKING:
-    from ..type_expression.type_expression import TypeExpression
+    from .type_expression import TypeExpression

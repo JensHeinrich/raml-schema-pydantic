@@ -16,10 +16,12 @@ from pydantic import PydanticTypeError
 
 from ._shunt import INode
 from .array_type_expression import ArrayTypeExpression as ArrayTypeExpression
+from .type_expression import TypeExpression as TypeExpression
 from .type_name import TypeName as TypeName
+from .union_type_expression import UnionTypeExpression as UnionTypeExpression
 
 if TYPE_CHECKING:
-    from ..types._IType import IType
+    from .._IType import IType
 
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
@@ -70,4 +72,4 @@ class MappingNotAllowedError(PydanticTypeError):
     msg_template = "Mapping type is not allowed"
 
 
-__all__ = ("ArrayTypeExpression", "TypeName")
+__all__ = ("ArrayTypeExpression", "TypeName", "TypeExpression", "UnionTypeExpression")

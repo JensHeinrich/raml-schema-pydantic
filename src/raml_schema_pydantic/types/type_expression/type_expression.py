@@ -40,11 +40,11 @@ from pydantic.utils import ROOT_KEY
 from typing_extensions import deprecated
 from typing_extensions import override
 
-from .._errors import ValidationError
-from .._helpers import _ValuesType
-from .._helpers import debug
-from .._helpers import debug_advanced
-from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ..._errors import ValidationError
+from ..._helpers import _ValuesType
+from ..._helpers import debug
+from ..._helpers import debug_advanced
+from .._TypeDeclarationProtocol import TypeDeclarationProtocol
 from ._shunt import check_in
 from ._shunt import ITree  # , Tree
 from ._shunt import Operator
@@ -109,7 +109,7 @@ LOG_LEVEL = logging.WARNING  # INFO
 
 _T = TypeVar("_T")
 
-from ..types.type_declaration import ITypeDeclaration
+from ..type_declaration import ITypeDeclaration
 
 InternalType_: TypeAlias = "ArrayTypeExpression | TypeName"  # FIXME
 
@@ -358,4 +358,4 @@ from .inheritance_type_expression import InheritanceExpression as InheritanceExp
 # TypeExpression.update_forward_refs()
 
 if TYPE_CHECKING:
-    from ..types.any_type import AnyType
+    from ..any_type import AnyType

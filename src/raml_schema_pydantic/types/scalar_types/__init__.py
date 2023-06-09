@@ -1,5 +1,7 @@
 """Module for RAML types."""
+from typing import Collection
 from typing import List
+from typing import Self
 from typing import Type
 from typing import TYPE_CHECKING
 from typing import TypeAlias
@@ -8,6 +10,7 @@ from pydantic import BaseModel
 
 from .._IType import IType
 from ..any_type import AnyType
+from ..type_declaration import ProtocolModel
 from .boolean_type import BooleanType
 from .date_type import DateOnlyType
 from .date_type import DateTimeOnlyType
@@ -54,7 +57,7 @@ ScalarTypeNames: List[str] = [
 ]
 
 
-class ScalarTypeContainer(BaseModel, IType):
+class ScalarTypeContainer(BaseModel, IType, metaclass=ProtocolModel):
     """Container for scalar types."""
 
     __root__: ScalarType
@@ -66,6 +69,12 @@ class ScalarTypeContainer(BaseModel, IType):
             Type: Type described by the TypeDeclaration
         """
         return self.__root__.as_type()
+
+    def _properties(self: "Self") -> Collection[str]:
+        return self.__root__._properties
+
+    def _facets(self: "Self") -> Collection[str]:
+        return self.__root__._facets
 
 
 __all__ = [

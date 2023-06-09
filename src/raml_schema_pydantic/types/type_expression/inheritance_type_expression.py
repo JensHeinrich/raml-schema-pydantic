@@ -4,6 +4,7 @@
 import json
 import logging
 from sys import version_info
+from typing import ForwardRef
 from typing import List
 from typing import TYPE_CHECKING
 from typing import TypeVar
@@ -13,7 +14,7 @@ from pydantic.main import BaseModel
 from pydantic.utils import ROOT_KEY
 from typing_extensions import deprecated
 
-from .._helpers import _ValuesType
+from ..._helpers import _ValuesType
 
 # prevent no-redef type errors, see https://github.com/python/mypy/issues/1153#issuecomment-1207333806
 if TYPE_CHECKING:
@@ -39,6 +40,8 @@ LOG_LEVEL = logging.WARNING  # INFO
 
 
 _T = TypeVar("_T")
+
+TypeExpression = ForwardRef("TypeExpression")
 
 
 @deprecated("This class is replaced by recursive parsing of the referenced types.")
@@ -66,6 +69,3 @@ class InheritanceExpression(BaseModel):  # noqa: ignore[D101]
 
     def __str__(self: Self) -> str:  # noqa: ignore[D105]
         return json.dumps(map(str, self.__root__))
-
-
-from .type_expression import TypeExpression

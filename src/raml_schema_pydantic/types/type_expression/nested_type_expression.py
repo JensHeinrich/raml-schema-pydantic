@@ -1,3 +1,4 @@
+# type: ignore[D100,D101,D105]
 # pyright: basic
 #  #strict
 import logging
@@ -18,8 +19,9 @@ from pydantic import StrError
 from pydantic.error_wrappers import ErrorList
 from typing_extensions import override
 
-from .._errors import ValidationError
-from ..types._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ..._errors import ValidationError
+from .._TypeDeclarationProtocol import TypeDeclarationProtocol
+from ..type_declaration import ProtocolModel
 from ._base_type_expression_type import BaseTypeExpressionType
 from ._shunt import ITree  # , Tree
 from ._shunt import OperatorNode
@@ -55,15 +57,17 @@ LOG_LEVEL = logging.WARNING  # INFO
 
 _T = TypeVar("_T")
 
-from .type_expression import TypeExpression
 
-# TypeExpression = ForwardRef("TypeExpression", is_class=True)
+# from .type_expression import TypeExpression
+
+TypeExpression = ForwardRef("TypeExpression")
 
 
 class NestedTypeExpression(
     # BaseTypeExpressionType,
     OperatorNode[Token, Token],
     TypeDeclarationProtocol,
+    metaclass=ProtocolModel,
 ):
     # | `(type expression)`
     # | Parentheses disambiguate the expression to which an operator applies.
@@ -71,7 +75,7 @@ class NestedTypeExpression(
     # `Person \| Animal[]` <br><br>
     # `( Person \| Animal )[]`
 
-    inner: TypeExpression
+    inner: "TypeExpression"
     # op: ClassVar[Operator] = OPERATOR_NOOP
 
     def __repr__(self) -> str:
@@ -82,7 +86,7 @@ class NestedTypeExpression(
         ...
 
     @overload
-    def __init__(self, seq: TypeExpression) -> None:
+    def __init__(self, seq: "TypeExpression") -> None:
         ...
 
     # @overload

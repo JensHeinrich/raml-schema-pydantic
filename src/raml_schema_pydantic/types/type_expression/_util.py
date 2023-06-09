@@ -23,7 +23,7 @@ _T = TypeVar("_T")
 #     symbol = Token("|")
 
 
-OPERATOR_UNION: Operator[Token] = Operator(
+OPERATOR_UNION: Operator[Token] = Operator[Token](
     symbol=Token("|"),
     name="Union",
 )
@@ -37,7 +37,7 @@ OPERATOR_UNION: Operator[Token] = Operator(
 #     unary_position = "postfix"
 
 
-OPERATOR_ARRAY: Operator[Token] = Operator(
+OPERATOR_ARRAY: Operator[Token] = Operator[Token](
     symbol=Token("[]"),
     name="Array",
     precedence=5,
@@ -52,7 +52,7 @@ OPERATOR_ARRAY: Operator[Token] = Operator(
 #     unary = True
 
 
-OPERATOR_NOOP: Operator[Token] = Operator(
+OPERATOR_NOOP: Operator[Token] = Operator[Token](
     symbol=Token("NOOP"),
     name="NOOP",
     unary=True,
