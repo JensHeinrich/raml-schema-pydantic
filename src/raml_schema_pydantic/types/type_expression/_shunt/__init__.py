@@ -123,7 +123,11 @@ def yield_longest_match(
             )
     if _current is not None:
         yield Token(_current)
-    raise StopIteration()
+    # Exhausted generators should just return
+    # Sources:
+    #   - https://stackoverflow.com/questions/31719068/how-to-handle-an-exhausted-iterator
+    #   - https://peps.python.org/pep-0479/
+    return
 
 
 def tokenize_from_generator(
