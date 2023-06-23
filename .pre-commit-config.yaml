@@ -42,6 +42,23 @@ repos:
           - Flake8-pyproject
           - flake8-bugbear
           - flake8-type-checking
+        exclude: &flake8_exclude |
+          (?x)^(
+            tests/
+            ).+.py$
+      - id: flake8
+        name: flake8-tests
+        additional_dependencies:
+          - pep8-naming
+          - mccabe
+          - flake8-docstrings
+          - Flake8-pyproject
+          - flake8-bugbear
+          - flake8-type-checking
+        files: *flake8_exclude
+        args:
+          - --extend-ignore
+          - D100,D103,E501,N802
 
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.311
