@@ -24,7 +24,7 @@ _T = TypeVar("_T")
 
 
 OPERATOR_UNION: Operator[Token] = Operator[Token](
-    symbol=Token("|"),
+    value=Token("|"),
     name="Union",
 )
 
@@ -38,7 +38,7 @@ OPERATOR_UNION: Operator[Token] = Operator[Token](
 
 
 OPERATOR_ARRAY: Operator[Token] = Operator[Token](
-    symbol=Token("[]"),
+    value=Token("[]"),
     name="Array",
     precedence=5,
     unary=True,
@@ -53,9 +53,10 @@ OPERATOR_ARRAY: Operator[Token] = Operator[Token](
 
 
 OPERATOR_NOOP: Operator[Token] = Operator[Token](
-    symbol=Token("NOOP"),
+    value=Token("NOOP"),
     name="NOOP",
     unary=True,
+    unary_position="prefix",
 )
 
 OPS: List[Operator[Token]] = [OPERATOR_ARRAY, OPERATOR_UNION]

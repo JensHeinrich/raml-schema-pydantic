@@ -68,6 +68,7 @@ repos:
           - pydantic
           - pytest
           - hypothesis
+          - .
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: "v1.3.0"
