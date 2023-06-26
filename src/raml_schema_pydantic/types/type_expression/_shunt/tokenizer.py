@@ -1,7 +1,6 @@
 """Tokenizer functions."""
 import logging
 import re
-from typing import cast
 from typing import Generator
 from typing import Iterable
 from typing import List
@@ -40,36 +39,6 @@ def any_starts_with(
         bool: any candidate starts with the prefix
     """
     return any(t.startswith(prefix) for t in candidates)
-
-
-def get_longest_match(
-    candidates: Iterable[_StrType_co],
-    input_string: str,
-) -> _StrType_co:
-    """Get the longest part of the input_string which is still a valid candidate.
-
-    Args:
-        candidates (Iterable[str]): Iterable of candidates to evaluate
-        input_string (str): string to find the longest match for
-
-    Raises:
-        ValueError: Exception if no match can be found
-
-    Returns:
-        str: longest matching prefix
-    """
-    for i in range(
-        min(  # only iterate through the possible values
-            max([len(t) for t in candidates]),  # maximum candidate length
-            len(input_string),  #
-        )
-        - 1,  # index starts at 0
-        0,
-        -1,  # decrease index
-    ):
-        if (matched := cast("_StrType_co", input_string[: i + 1])) in candidates:
-            return matched
-    raise ValueError("No match found!")
 
 
 def yield_longest_match(
@@ -147,6 +116,5 @@ def tokenize_from_generator(
 __all__ = (
     "any_starts_with",
     "yield_longest_match",
-    "get_longest_match",
     "tokenize_from_generator",
 )
