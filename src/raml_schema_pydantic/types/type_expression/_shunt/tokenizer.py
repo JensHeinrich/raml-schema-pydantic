@@ -6,11 +6,9 @@ from typing import Iterable
 from typing import List
 from typing import TypeVar
 
-from .token_types import _TokenType_co
 from .token_types import ClosingDelim
 from .token_types import DelimPair
 from .token_types import OpeningDelim
-from .token_types import Operator
 from .token_types import Token
 
 
@@ -42,7 +40,7 @@ def any_starts_with(
 
 
 def yield_longest_match(
-    input_data: str, symbols: Iterable[_TokenType_co]
+    input_data: str, symbols: Iterable[_StrType_co]
 ) -> Generator[Token, None, None]:
     """Yield longest matching sequences.
 
@@ -50,15 +48,12 @@ def yield_longest_match(
 
     Args:
         input_data (str): String to yield from.
-        symbols (Iterable[_TokenType_co]): Known tokens.
-
-    Raises:
-        StopIteration: Exception for an exhausted generator.
+        symbols (Iterable[_TokenType_contra]): Known tokens.
 
     Yields:
-        Generator[_TokenType_co | Token, None, None]: Generator yielding the matching sequences.
+        Generator[Token, None, None]: Generator yielding the matching sequences.
     """
-    _sorted_symbols: List[_TokenType_co] = sorted(symbols, key=len, reverse=True)
+    _sorted_symbols: List[_StrType_co] = sorted(symbols, key=len, reverse=True)
     _input_data: str = input_data
     _current: str | None = None
 
@@ -67,7 +62,7 @@ def yield_longest_match(
             if _input_data.startswith(token):
                 if _current is not None:
                     yield Token(_current)
-                yield token
+                yield token if isinstance(token, Token) else Token(token)
                 _input_data = _input_data.removeprefix(token)
                 _current = None
                 break
@@ -87,15 +82,13 @@ def yield_longest_match(
 
 def tokenize_from_generator(
     input_data: str,
-    ops: Iterable[Operator],
-    delim_pairs: Iterable[DelimPair] = DEFAULT_DELIMS,
+    predefined_tokens: Iterable[_StrType_co],
 ) -> List[Token]:
     """Create a list of tokens from a string splitting on operators and delimiters.
 
     Args:
         input_data (str): String to split.
-        ops (Iterable[Operator]): Supported operators.
-        delim_pairs (Iterable[DelimPair], optional): Supported delimiters. Defaults to DEFAULT_DELIMS.
+        predefined_tokens (Iterable[_TokenType_contra]): Tokens the tokenizer should recognize,
 
     Returns:
         List[Token]: List of recognized tokens.
@@ -106,9 +99,7 @@ def tokenize_from_generator(
         Token(token)
         for token in yield_longest_match(
             input_data=input_data,
-            symbols={delim.opening for delim in delim_pairs}
-            | {delim.closing for delim in delim_pairs}
-            | {op.value for op in ops},
+            symbols=predefined_tokens,
         )
     ]
 

@@ -146,8 +146,11 @@ def shunt(
     """
     _data: List[Token] = tokenize_from_generator(
         input_data=input_data,
-        ops=ops,
-        delim_pairs=delim_pairs,
+        predefined_tokens=(
+            {delim.opening for delim in delim_pairs}
+            | {delim.closing for delim in delim_pairs}
+            | {op.value for op in ops}
+        ),
     )
 
     return shunt_tokens(input_data=_data, ops=ops, delim_pairs=delim_pairs)

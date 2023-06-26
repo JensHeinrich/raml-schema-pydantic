@@ -111,12 +111,32 @@ TOKENIZE_TEST_CASES = (
 
 @pytest.mark.parametrize("input_string,expected", TOKENIZE_TEST_CASES)
 def test_tokenize(input_string, expected, all_operators):
-    assert tokenize(input_string, ops=all_operators) == expected
+    assert (
+        tokenize(
+            input_string,
+            predefined_tokens=(
+                {delim.opening for delim in DEFAULT_DELIMS}
+                | {delim.closing for delim in DEFAULT_DELIMS}
+                | {op.value for op in all_operators}
+            ),
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize("input_string,expected", TOKENIZE_TEST_CASES)
 def test_tokenize_generator(input_string, expected, all_operators):
-    assert tokenize_from_generator(input_string, ops=all_operators) == expected
+    assert (
+        tokenize_from_generator(
+            input_string,
+            predefined_tokens=(
+                {delim.opening for delim in DEFAULT_DELIMS}
+                | {delim.closing for delim in DEFAULT_DELIMS}
+                | {op.value for op in all_operators}
+            ),
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -167,8 +187,22 @@ def test_shunting_yard_extra():
         OPERATOR_ARRAY,
         OPERATOR_UNION,
     ]
-    assert tokenize("A []|B[]", ops=ops) == ["A", "[]", "|", "B", "[]"]
-    assert tokenize("A[] |B[]", ops=ops) == ["A", "[]", "|", "B", "[]"]
+    assert tokenize(
+        "A []|B[]",
+        predefined_tokens=(
+            {delim.opening for delim in DEFAULT_DELIMS}
+            | {delim.closing for delim in DEFAULT_DELIMS}
+            | {op.value for op in ops}
+        ),
+    ) == ["A", "[]", "|", "B", "[]"]
+    assert tokenize(
+        "A[] |B[]",
+        predefined_tokens=(
+            {delim.opening for delim in DEFAULT_DELIMS}
+            | {delim.closing for delim in DEFAULT_DELIMS}
+            | {op.value for op in ops}
+        ),
+    ) == ["A", "[]", "|", "B", "[]"]
     assert str(postfix_to_ast(shunt("A[] |B[]", ops=ops))) == "A[]|B[]"
     assert shunt("A|B", ops=ops) == shunt("(A|B)", ops=ops, delim_pairs=DEFAULT_DELIMS)
 
