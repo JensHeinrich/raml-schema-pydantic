@@ -7,7 +7,7 @@ repos:
       - id: trailing-whitespace
       - id: debug-statements
   - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
+    rev: v3.10.0
     hooks:
       - id: reorder-python-imports
   - repo: https://github.com/psf/black
@@ -61,7 +61,7 @@ repos:
           - D100,D103,E501,N802
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.311
+    rev: v1.1.315
     hooks:
       - id: pyright
         additional_dependencies:
@@ -71,7 +71,7 @@ repos:
           - .
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.3.0"
+    rev: "v1.4.0"
     hooks:
       - id: mypy
 
