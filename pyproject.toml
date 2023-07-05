@@ -68,7 +68,7 @@ max_complexity = 8
 [tool.coverage.run]
 branch = true
 command_line = '-m pytest'
-source = ['app/']
+source = ['src/raml_schema_pydantic/']
 
 [tool.coverage.report]
 precision = 2
