@@ -13,6 +13,7 @@ from typing import TypeGuard
 from typing import TypeVar
 
 from pydantic import Field
+from pydantic import ListMinLengthError
 from pydantic import PydanticTypeError
 from pydantic import root_validator
 from pydantic import validator
@@ -487,7 +488,7 @@ def rpn_to_ast(
     return _parse(list(input_data))
 
 
-def postfix_to_ast(
+def postfix_to_ast(  # noqa: disable[C901] # FIXME
     input_data: List[Operator[_SymbolType] | _ValueType],
 ) -> ValueNode[_ValueType] | OperatorNode[_SymbolType, _ValueType]:
     """Convert a tree in postfix notation into a "proper" Tree.
@@ -498,6 +499,8 @@ def postfix_to_ast(
     Returns:
         ITree: Tree matching the input
     """
+    if not len(input_data) > 0:
+        raise ListMinLengthError(limit_value=1)
 
     def _parse_as_far_as_possible(
         input_data: List[Operator[_SymbolType] | _ValueType],
@@ -516,6 +519,8 @@ def postfix_to_ast(
         Returns:
             Tuple[ITree, List[str | Operator]]: Subtree and unused entries
         """
+        if not len(input_data) > 0:
+            raise ListMinLengthError(limit_value=1)
         _current: _ValueType | Operator[_SymbolType] = input_data.pop()
         if isinstance(_current, Operator):
             children: List[
