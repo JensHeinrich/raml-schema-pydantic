@@ -18,6 +18,7 @@ from pydantic import PydanticTypeError
 from pydantic import root_validator
 from pydantic import validator
 from pydantic.generics import GenericModel
+from typing_extensions import deprecated
 
 from .ast import INode
 from .token_types import _SymbolType
@@ -488,6 +489,7 @@ def rpn_to_ast(
     return _parse(list(input_data))
 
 
+@deprecated("use rpn_to_ast instead")
 def postfix_to_ast(  # noqa: disable[C901] # FIXME
     input_data: List[Operator[_SymbolType] | _ValueType],
 ) -> ValueNode[_ValueType] | OperatorNode[_SymbolType, _ValueType]:
