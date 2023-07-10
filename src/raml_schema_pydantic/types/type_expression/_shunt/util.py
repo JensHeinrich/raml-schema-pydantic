@@ -271,8 +271,11 @@ class ValueNode(GenericModel, INode, Generic[_ValueType]):
     def _pass_str_as_value(cls, values):
         if isinstance(values, str):
             return {"value": values}
-        logger.error(f"Non string value {values}")
-        return values
+        elif isinstance(values, Mapping) and "values" in values:
+            return values
+        else:
+            logger.warning(f"Non string value {values}")
+            return values
 
     def as_dot(self) -> str:
         """Return a dot representation of the node and its children.
