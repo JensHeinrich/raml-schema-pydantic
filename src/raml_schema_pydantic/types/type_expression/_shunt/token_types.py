@@ -4,6 +4,7 @@ import logging
 from contextlib import suppress
 from typing import Any
 from typing import Generic
+from typing import List
 from typing import Literal
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -15,6 +16,9 @@ from pydantic import Field
 from pydantic import StrError
 from pydantic import validator
 from pydantic.generics import GenericModel
+
+from .exceptions import ListLengthError
+from .exceptions import NonMatchingPlaceholderCount
 
 HYPOTHESIS_AVAILABLE: bool = False
 with suppress(ImportError):
@@ -217,6 +221,98 @@ _OperatorType_contra = TypeVar(
 )
 
 
+class RPNToken(BaseModel):
+    """Class for tokens used in the reverse polish notation.
+
+    The token has to know it's argument count, so an operator token, which can be used as a unary or a binary operator has to be fixed to one.
+
+    Source:
+    - https://github.com/mgenware/go-shunting-yard/blob/master/evaluate.go
+    - https://en.wikipedia.org/wiki/Reverse_Polish_notation
+    """
+
+    arg_count: int = Field(
+        default=..., description="Number of arguments the token takes", required=True
+    )
+
+    @validator("arg_count")
+    def _check_for_valid_arg_count(cls, v):
+        if v >= 0:
+            return v
+        raise ValueError(
+            f"arg_count needs to be an int between 0 and infinity, but was {v}"
+        )
+
+    values: List[Token | None] = Field(
+        default=..., description="Value to show", required=True
+    )
+
+    @validator("values")
+    def _check_value_count(cls, v, values):
+        _arg_count = values["arg_count"]
+        _expected_length = (
+            1
+            if (_arg_count == 0)
+            else 2
+            if (_arg_count == 1)
+            else (2 * (_arg_count - 1) + 1)
+        )  # FIXME define formula without 'if'; 0-> 1, 1 -> 2,  >2 => 2*(_arg_count - 1) +1 : 2->2+1, 3 -> 3+2, 4 -> 4 + 3
+        if len(list(filter(lambda x: x is None, v))) == _arg_count and (
+            len(v) == _expected_length
+        ):
+            if (_none_count := len([x for x in v if x is None])) == _arg_count:
+                return v
+            raise NonMatchingPlaceholderCount(
+                actual_count=_none_count, expected_count=_arg_count
+            )
+
+        raise ListLengthError(actual_length=len(v), expected_length=_expected_length)
+
+    precedence: int = Field(default=0, required=False)
+    associativity: Literal["left", "right", "none"]  # = "none"
+
+    def __str__(self) -> str:
+        """Return the generic string representation of the Token.
+
+        Returns:
+            str: generic string representation
+        """
+        _ret: str = ""
+        for _v in self.values:
+            if _v is not None:
+                _ret += _v
+        return _ret
+        return str(self.values)
+
+    def __hash__(self) -> int:
+        """Create a hash of the object for use in dictionaries.
+
+        Returns:
+            int: hash for looking up the object
+        """
+        return self.__repr__().__hash__()
+
+    def __eq__(self, __value: object) -> bool:
+        """Compare self to another object.
+
+        Args:
+            __value (object): Object to compare to.
+
+        Raises:
+            TypeError: Unsupported Type.
+
+        Returns:
+            bool: Wether both objects are equal.
+        """
+        if isinstance(__value, RPNToken):
+            return (
+                self.arg_count == __value.arg_count
+                and self.values == __value.values
+                and self.associativity == __value.associativity
+            )
+        raise TypeError(f"Can only compare RPNToken to RPNToken, not {type(__value)}")
+
+
 __all__ = (
     "_OperatorType_co",
     "_OperatorType_contra",
@@ -235,6 +331,7 @@ __all__ = (
     "OpeningDelim",
     "Operator",
     "Token",
+    "RPNToken",
 )
 
 
