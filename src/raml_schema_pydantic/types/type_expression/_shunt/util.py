@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import TypeGuard
 from typing import TypeVar
 
+from pydantic import Field
 from pydantic import PydanticTypeError
 from pydantic import root_validator
 from pydantic import validator
@@ -21,6 +22,7 @@ from .ast import INode
 from .token_types import _SymbolType
 from .token_types import _ValueType
 from .token_types import Operator
+from .token_types import RPNToken
 from .token_types import Token
 
 if TYPE_CHECKING:
@@ -28,6 +30,235 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+_RPNTokenType = TypeVar("_RPNTokenType", bound=RPNToken)
+
+
+class RPNNode(GenericModel, INode, Generic[_RPNTokenType]):
+    arg_count: int = Field(
+        default=0,
+        # ge=0,
+        required=True,
+    )  # needs to be defined first
+
+    def __eq__(self, __value: object) -> bool:
+        if isinstance(__value, RPNNode):
+            return (
+                self.arg_count == __value.arg_count
+                and self.value == __value.value
+                and len(self.children) == len(__value.children)
+                and all(
+                    [
+                        self.children[i] == __value.children[i]
+                        for i in range(len(self.children))
+                    ]
+                )
+            )
+        logger.warning(f"Trying to compare {type(self)} to {type(__value)}")
+        return False
+
+    @validator("arg_count")
+    def _validate_arg_count(cls, v) -> int:
+        if 0 <= v:
+            return v
+        raise ValueError()
+
+    value: _RPNTokenType = Field(
+        default=...,
+        required=True,
+        description="An RPNToken"  # list of symbols using `None` as placeholder for the children",
+        # i.e.
+        # [Token("A")] for a value
+        # [Token("!"), None] for an unary prefix operator
+        # [None, Token("[]")] for an unary suffix operator
+        # [None, Token("*"), None] for a binary operator
+        # [None. Token("?"), None, Token(":"), None] for a ternary operator
+        #
+    )
+    children: List[RPNNode[_RPNTokenType]] = Field(default=..., required=False)
+
+    @validator("children")
+    def _validate_child_count(cls, v: None | Any, values) -> None | int:
+        if v is None:
+            return v
+        if len(v) == values["arg_count"]:
+            return v
+        if values["arg_count"] == len(list(filter(lambda p: p is None, v))):
+            return v
+
+        raise ValueError(
+            f"{' '.join(values['value'])} expects {values['arg_count']} children, but got {len(v)} children: {v}"
+        )
+
+    @property
+    def nodename(self) -> str:
+        """Create a unique and reusable name for the node.
+
+        Returns:
+            str: unique name for the node
+        """
+        return f"RPNNode{id(self)}"
+
+    def as_dot(self) -> str:
+        """Return a dot representation of the node and its children.
+
+        Returns:
+            str: dot representation of the node and its children.
+        """
+        return "\n".join(
+            (
+                # f"""{self.nodename} [label = "{self.op.symbol}"];""",
+                f"""{self.nodename} [label = "{self.value}"];""",
+            )
+            + (
+                "// edges to children",
+                f"""{self.nodename} -> {{ {str(' '.join(c.nodename for c in self.children))} }}""",
+                "// child definitions",
+                *(c.as_dot() for c in self.children),
+            )
+            if self.arg_count > 0
+            else ()
+        )
+
+    def __str__(self) -> str:  # noqa: ignore[C901] # FIXME
+        _ret: str = ""
+        _v: Token | None
+        # FIXME ternary operators are not yet supported
+        if self.arg_count == 0:
+            return str(self.value)
+
+        # arg_count is at least one, so a left child is defined
+        _left_child: RPNNode[_RPNTokenType] = self.children[0]
+        _left_child_string: str
+
+        if _left_child.arg_count > 1 and (
+            _left_child.value.precedence < self.value.precedence
+            or (
+                _left_child.value.precedence == self.value.precedence
+                and _left_child.value.associativity == "right"
+            )
+            or _left_child.value.associativity == "none"
+        ):
+            logger.warning(
+                f"""{repr(_left_child.value)}
+            {repr(self.value)}
+            {[str(child) for child in self.children]}"""
+            )
+            _left_child_string = f"({_left_child})"
+        else:
+            _left_child_string = f"{_left_child}"
+
+        if self.arg_count == 1:
+            assert len(self.value.values) == 2  # nosec: ignore[B101]
+            logger.warning(
+                f"Handling unary operator {self.value} with {[ str(child) for child in self.children]}"
+            )
+
+            if self.value.values[-1] is None:
+                return f"{self.value.values[0]}{_left_child_string}"
+            return f"{_left_child_string}{self.value.values[1]}"
+
+        # arg_count is at least 2, so a left child is defined
+        _right_child: RPNNode[_RPNTokenType] = self.children[1]
+        _right_child_string: str
+
+        if (
+            not pop_before(
+                _right_child.value,
+                self.value,
+            )
+            # 0 <= _right_child.value.precedence < self.value.precedence
+            and _right_child.arg_count > 1
+        ):
+            _right_child_string = f"({_right_child})"
+        else:
+            _right_child_string = f"{_right_child}"
+
+        if self.arg_count == 2:
+            # TODO handle associativity
+            logger.warning(
+                f"Handling binary operator {self.value} with {[ str(child) for child in self.children]}"
+            )
+
+            return f"{_left_child_string}{self.value}{_right_child_string}"
+
+        j = 0
+        for _v in self.value.values:
+            if _v is None:
+                if self.children[j].arg_count > 1:
+                    _ret += f"({self.children[j]})"
+                else:
+                    _ret += f"{self.children[j]}"
+                j += 1
+            else:
+                _ret += str(_v)
+        return _ret
+
+    def __hash__(self) -> int:
+        return self.__str__().__hash__()
+
+    def dirty_tree_str(self) -> str:
+        return (
+            f"|{self.value}|"
+            + f"[{','.join([child.dirty_tree_str() for child in self.children])}]"
+            if len(self.children) > 0
+            else ""
+        )
+
+
+def pop_before(op1: RPNToken, op2: RPNToken) -> bool:
+    """Return wether op1 should be evaluated before op2.
+
+    The structure is expected to be like
+        a op1 b op2 c
+
+    If op1 has higher precedence than op2 or the same precedence and is left associative,
+    then op1 has to be evaluated before op2, so it needs to be popped first.
+
+    If the structure is
+        a op1 op2 b
+    than the following cases are possible:
+        op1 is an unary postfix operator and op2 is a binary operator
+        => op1 is evaluated before op2  => True
+        op1 is a binary operator and op2 is an unary prefix operator
+        => op2 is evaluated before op1  => False
+
+    If the structure is
+        op1 op2 b
+    than
+        op1 and op2 have to be unary prefix operators and op2 is to be evaluated before op1
+        => True
+
+    Args:
+        op1 (RPNToken): first operator
+        op2 (RPNToken): second operator
+
+    Returns:
+        bool: wether op1 should be evaluated before op2
+    """
+    if op2.arg_count == 1:
+        # Unary operators.
+        # These generally work just like any binary operators except that they only pop one operand when they’re applied.
+        # There is one extra rule that needs to be followed, though:
+        # when processing a unary operator, it’s only allowed to pop-and-apply other unary operators—never any binary ones, regardless of precedence.
+        # This rule is to ensure that formulas like a ^ -b are handled correctly, where ^ (exponentiation) has a higher precedence than - (negation).
+        # (In a ^ -b there’s only one correct parse, but in -a^b you want to apply the ^ first.)
+        # Source: https://www.reedbeta.com/blog/the-shunting-yard-algorithm/
+        if op1.arg_count == 2:
+            logger.debug("unary operator can not be evaluated before binary")
+            return False
+
+    elif op1.arg_count == 1:
+        if op1.values[0] is None:  # postfix operator needs to be applied first
+            # if op2.arg_count != 1:
+            logger.debug(
+                "unary operator postfix followed by binary has to be evaluated first"
+            )
+            return True
+
+    return op1.precedence > op2.precedence or (
+        op1.precedence == op2.precedence and op2.associativity == "left"
+    )
 
 
 class ValueNode(GenericModel, INode, Generic[_ValueType]):
