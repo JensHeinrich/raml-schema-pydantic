@@ -170,14 +170,16 @@ class Operator(GenericModel, Generic[_SymbolType]):
         Returns:
             str: 'official' string representation of the object.
         """
-        return f"""Operator(
-            value="{str(self.value)}",
-            name="{str(self.name)}",
-            precedence="{str(self.precedence)}",
-            unary="{str(self.unary)}",
-            unary_position="{str(self.unary_position)}",
-            associativity="{str(self.associativity)}",
-        )"""
+        return (
+            "Operator("
+            f"""value="{str(self.value)}","""
+            f"""name="{str(self.name)}","""
+            f"""precedence="{str(self.precedence)}","""
+            f"""unary={self.unary},"""
+            f"""unary_position="{str(self.unary_position)}","""
+            f"""associativity="{str(self.associativity)}","""
+            ")"
+        )
 
     if HYPOTHESIS_AVAILABLE:
         # make type hashable for hypothesis
