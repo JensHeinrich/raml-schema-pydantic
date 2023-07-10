@@ -440,6 +440,53 @@ _ValueNodeType_contra = TypeVar(
 )
 
 
+def _parse_rpn_list_as_far_as_possible_to_ast(
+    input_data: List[RPNToken],
+) -> Tuple[RPNNode[RPNToken], List[RPNToken],]:
+    _input_data: List[RPNToken] = input_data
+    _current = _input_data.pop()
+    if _current.arg_count == 0:
+        return (
+            RPNNode[RPNToken](
+                value=_current,
+                arg_count=0,
+                children=[],
+            ),
+            _input_data,
+        )
+    else:
+        _children: List[RPNNode[RPNToken]] = []
+        _tail: List[RPNToken] = input_data
+        for _ in range(_current.arg_count):
+            _child, _tail = _parse_rpn_list_as_far_as_possible_to_ast(input_data=_tail)
+            _children.append(_child)
+        _children.reverse()  # The children need to be reversed to match the "standard" notation
+        _rpn_node = RPNNode[RPNToken](
+            value=_current,  # [None if _v is None else _current for _v in _current.values],
+            arg_count=_current.arg_count,
+            children=_children,
+        )
+        return (
+            _rpn_node,
+            _tail,
+        )
+
+
+def rpn_to_ast(
+    input_data: List[RPNToken],
+) -> RPNNode[RPNToken]:
+    def _parse(
+        input_data: List[RPNToken],
+    ) -> RPNNode[RPNToken]:
+        _input_data = input_data  # keep a copy to make debugging easier
+        _node, _input_data = _parse_rpn_list_as_far_as_possible_to_ast(_input_data)
+        if _input_data:
+            raise ValueError("reverse polish notation was not resolvable")
+        return _node
+
+    return _parse(list(input_data))
+
+
 def postfix_to_ast(
     input_data: List[Operator[_SymbolType] | _ValueType],
 ) -> ValueNode[_ValueType] | OperatorNode[_SymbolType, _ValueType]:
