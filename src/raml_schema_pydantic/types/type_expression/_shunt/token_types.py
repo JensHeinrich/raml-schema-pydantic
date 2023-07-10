@@ -67,6 +67,14 @@ class Token(str):
         yield cls._strip_spaces
         yield cls._ensure_not_empty
 
+    def __repr__(self) -> str:
+        """Create the official string representation.
+
+        Returns:
+            str: 'official' string representation of the object.
+        """
+        return "Token(" + super().__repr__() + ")"
+
 
 _TokenType = TypeVar("_TokenType", bound=Token)
 _TokenType_co = TypeVar("_TokenType_co", bound=Token, covariant=True)
