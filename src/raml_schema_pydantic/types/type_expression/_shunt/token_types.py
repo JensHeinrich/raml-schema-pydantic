@@ -168,6 +168,16 @@ class Operator(GenericModel, Generic[_SymbolType]):
                 "`unary_position` shouldn't be defined for binary operators."
             )
 
+    @validator("unary")
+    def _warn_on_both(cls, v: Literal[True, False, "both"]):
+        if v == "both":
+            warn(
+                "This using 'both' is deprecated. Just add the operator multiple times.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return v
+
     def __str__(self) -> str:
         """Create a simple string for the operator."""
         return str(self.value)
