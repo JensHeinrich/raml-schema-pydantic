@@ -8,6 +8,7 @@ from typing import Literal
 from typing import Optional
 from typing import TYPE_CHECKING
 from typing import TypeVar
+from warnings import warn
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -125,7 +126,18 @@ class Operator(GenericModel, Generic[_SymbolType]):
     precedence: int = 0
     unary: Literal[True, False, "both"]
     unary_position: Literal["prefix", "postfix", None] = None
-    associativity: Literal["left", "right", "none"] = "left"
+    associativity: Literal["left", "right", "none"]
+
+    @validator("associativity")
+    def _sanity_check_associativity(cls, v, values) -> Literal["left", "right", "none"]:
+        if values["unary"] is True and v == "none":
+            raise ValueError("Associativity is only defined for binary operators")
+        else:
+            warn(
+                "Binary values should be associative for ease of use",
+                category=UserWarning,
+            )
+        return v
 
     @validator("unary_position", always=True)
     def _ensure_position_is_defined(
