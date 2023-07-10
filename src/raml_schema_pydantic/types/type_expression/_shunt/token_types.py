@@ -123,7 +123,7 @@ class Operator(GenericModel, Generic[_SymbolType]):
 
     name: Optional[str] = None
     precedence: int = 0
-    unary: Literal[True, False, "both"] = False
+    unary: Literal[True, False, "both"]
     unary_position: Literal["prefix", "postfix", None] = None
     associativity: Literal["left", "right", "none"] = "left"
 
