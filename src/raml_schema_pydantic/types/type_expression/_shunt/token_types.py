@@ -142,7 +142,7 @@ class Operator(GenericModel, Generic[_SymbolType]):
 
     @validator("associativity")
     def _sanity_check_associativity(cls, v, values) -> Literal["left", "right", "none"]:
-        if values["unary"] is True and v == "none":
+        if values["unary"] is True and not v == "none":
             raise ValueError("Associativity is only defined for binary operators")
         else:
             warn(
