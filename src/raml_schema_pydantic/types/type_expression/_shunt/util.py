@@ -5,8 +5,10 @@ from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import List
+from typing import Literal
 from typing import Mapping
 from typing import Sequence
+from typing import Set
 from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import TypeGuard
@@ -21,6 +23,7 @@ from pydantic.generics import GenericModel
 from typing_extensions import deprecated
 
 from .ast import INode
+from .token_types import _OperatorType_co
 from .token_types import _SymbolType
 from .token_types import _ValueType
 from .token_types import Operator
@@ -133,13 +136,36 @@ class RPNNode(GenericModel, INode, Generic[_RPNTokenType]):
         _left_child: RPNNode[_RPNTokenType] = self.children[0]
         _left_child_string: str
 
-        if _left_child.arg_count > 1 and (
-            _left_child.value.precedence < self.value.precedence
-            or (
-                _left_child.value.precedence == self.value.precedence
-                and _left_child.value.associativity == "right"
+        if (
+            _left_child.arg_count > 1
+            and (
+                _left_child.value.precedence < self.value.precedence
+                or (
+                    _left_child.value.precedence == self.value.precedence
+                    and _left_child.value.associativity == "right"
+                )
+                or _left_child.value.associativity == "none"
             )
-            or _left_child.value.associativity == "none"
+            # or (
+            #     # handling of chained unary operators
+            #     self.arg_count == 1
+            #     and _left_child.arg_count == 1
+            #     and (
+            #         (  # prefix operators
+            #             self.value.values[-1] is None
+            #             and _left_child.value.values[-1] is None
+            #             and _left_child.value.precedence
+            #             >= self.value.precedence  # behaves like right associativity
+            #         )
+            #         or (
+            #             # postfix operators
+            #             self.value.values[0] is None
+            #             and _left_child.value.values[0] is None
+            #             and _left_child.value.precedence
+            #             >= self.value.precedence  # behaves like right associativity
+            #         )
+            #     )
+            # )
         ):
             logger.warning(
                 f"""{repr(_left_child.value)}
@@ -152,7 +178,7 @@ class RPNNode(GenericModel, INode, Generic[_RPNTokenType]):
 
         if self.arg_count == 1:
             assert len(self.value.values) == 2  # nosec: ignore[B101]
-            logger.warning(
+            logger.debug(
                 f"Handling unary operator {self.value} with {[ str(child) for child in self.children]}"
             )
 
@@ -178,7 +204,7 @@ class RPNNode(GenericModel, INode, Generic[_RPNTokenType]):
 
         if self.arg_count == 2:
             # TODO handle associativity
-            logger.warning(
+            logger.debug(
                 f"Handling binary operator {self.value} with {[ str(child) for child in self.children]}"
             )
 
@@ -208,7 +234,35 @@ class RPNNode(GenericModel, INode, Generic[_RPNTokenType]):
         )
 
 
-def pop_before(op1: RPNToken, op2: RPNToken) -> bool:
+def is_unary_prefix_operator(op: RPNToken) -> bool:
+    """Check if the token is an unary prefix operator.
+
+    Args:
+        op (RPNToken): Token to check.
+
+    Returns:
+        bool: Wether the token is an unary prefix operator.
+    """
+    if op.arg_count == 1 and op.values[-1] is None:
+        return True
+    return False
+
+
+def is_unary_postfix_operator(op: RPNToken) -> bool:
+    """Check if the token is an unary postfix operator.
+
+    Args:
+        op (RPNToken): Token to check.
+
+    Returns:
+        bool: Wether the token is an unary postfix operator.
+    """
+    if op.arg_count == 1 and op.values[0] is None:
+        return True
+    return False
+
+
+def pop_before(op1: RPNToken, op2: RPNToken) -> bool:  # noqa: ignore[C901] # FIXME
     """Return wether op1 should be evaluated before op2.
 
     The structure is expected to be like
@@ -247,16 +301,49 @@ def pop_before(op1: RPNToken, op2: RPNToken) -> bool:
         # (In a ^ -b there’s only one correct parse, but in -a^b you want to apply the ^ first.)
         # Source: https://www.reedbeta.com/blog/the-shunting-yard-algorithm/
         if op1.arg_count == 2:
-            logger.debug("unary operator can not be evaluated before binary")
-            return False
-
-    elif op1.arg_count == 1:
-        if op1.values[0] is None:  # postfix operator needs to be applied first
-            # if op2.arg_count != 1:
             logger.debug(
-                "unary operator postfix followed by binary has to be evaluated first"
+                f"unary operator {op2} can not be evaluated before binary {op1}"
             )
-            return True
+            return False
+        elif op1.arg_count == 1:  # two unary operators
+            if is_unary_prefix_operator(op2):
+                # op2.values[0] is None:  # op2 is unary prefix
+                if is_unary_prefix_operator(op1):
+                    # op1.values[0] is None:  # op1 is unary prefix
+                    logger.debug(
+                        f"unary prefix operators are expected to be evaluated right-to-left: {op1, op2}"
+                    )
+                    return False
+                if is_unary_postfix_operator(op1):
+                    # op1.values[-1] is None:  # op1 is unary postfix
+                    raise ValueError(
+                        f"unary postfix {op1} is followed by unary prefix {op2}"
+                    )
+            if is_unary_postfix_operator(op2):
+                # op2.values[-1] is None:  # op2 is unenary postfix
+                if is_unary_prefix_operator(op1):
+                    # op1.values[0] is None:  # op1 is unary prefix
+                    logger.debug(
+                        "unary prefix operator followed by unary postfix operator is evaluated left-to-right"
+                    )
+                    return True
+                if is_unary_postfix_operator(op1):
+                    # op1.values[-1] is None:  # op1 is unary postfix
+                    logger.debug(
+                        f"unary postfix operators are expected to be evaluated left-to-right: {op1,op2}"
+                    )
+                    return True
+
+    elif op2.arg_count == 2:  # op2 is binary operator
+        if op1.arg_count == 1:  # op1 is unary operator
+            if op1.values[0] is None:  # postfix operator needs to be applied first
+                # if op2.arg_count != 1:
+                logger.debug(
+                    "unary operator postfix followed by binary has to be evaluated first"
+                )
+                return True
+    else:
+        raise ValueError(f"{op2} is expected to be unary or binary")
 
     return op1.precedence > op2.precedence or (
         op1.precedence == op2.precedence and op2.associativity == "left"
@@ -581,6 +668,29 @@ def check_in(instance: Any, d: Mapping[_K, Any] | Sequence[_K]) -> TypeGuard[_K]
     if instance in d:
         return True
     return False
+
+
+def sanity_check_operators(
+    ops: Sequence[_OperatorType_co],
+) -> Tuple[Literal[True], None] | Tuple[Literal[False], Exception]:
+    """Check wether the operator sequence is valid.
+
+    Args:
+        ops (Sequence[_OperatorType_co]): Sequence of operators to check.
+
+    Returns:
+        Tuple[True,None] | Tuple[False, Exception]: Information wether the sequence is valid and a exception to throw if it isn't.
+    """
+    _postfix_operators: Set = {op.value for op in ops if op.unary_position == "postfix"}
+    _non_postfix_operators: Set = {
+        op.value for op in ops if op.unary_position != "postfix"
+    }
+    _intersection = _postfix_operators.intersection(_non_postfix_operators)
+    if len(_intersection) > 0:
+        return False, ValueError(
+            f"An operator may not be used as a postfix operator AND either a prefix of a binary operator. {_intersection}"
+        )
+    return True, None
 
 
 __all__ = (

@@ -1,5 +1,6 @@
 """Strategies for testing."""
 # Part of this is written by the  `hypothesis.extra.ghostwriter` module.
+# pyright: strict
 import logging
 from typing import Callable
 from typing import cast
@@ -7,6 +8,7 @@ from typing import ChainMap
 from typing import List
 from typing import Optional
 from typing import Sequence
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -15,17 +17,20 @@ from hypothesis import assume as assume
 from hypothesis import note as note
 from hypothesis import strategies as st
 
-from .token_types import _SymbolType
+from .token_types import _SymbolType  # pyright: ignore [reportPrivateUsage]
 from .token_types import ClosingDelim
 from .token_types import DelimPair
 from .token_types import OpeningDelim
 from .token_types import Operator
+from .token_types import RPNToken
 from .token_types import Token
-
+from .util import RPNNode
+from .util import sanity_check_operators
 
 logger = logging.getLogger(__name__)
 
 BLACKLIST_CATEGORIES = ("C", "Z")
+MAX_ARGS = 10
 
 characters_strategy: st.SearchStrategy[str] = st.characters(
     blacklist_categories=BLACKLIST_CATEGORIES
@@ -83,8 +88,12 @@ def operator_strategy_from_symbol_strategy(
     operator_unary_strategy: st.SearchStrategy[Operator[_SymbolType]] = st.builds(
         Operator[_SymbolType],
         value=symbol_strategy,
-        associativity=st.one_of(
-            st.just("left"), st.sampled_from(["none", "right", "left"])
+        associativity=st.sampled_from(
+            [
+                "none",
+                # "right", associativity is only defined for binary operators
+                # "left" associativity is only defined for binary operators
+            ]
         ),
         name=st.one_of(st.none(), st.one_of(st.none(), st.text())),
         precedence=st.one_of(st.just(0), st.integers()),
@@ -99,7 +108,14 @@ def operator_strategy_from_symbol_strategy(
         Operator[_SymbolType],
         value=symbol_strategy,
         associativity=st.one_of(
-            st.just("left"), st.sampled_from(["none", "right", "left"])
+            st.just("left"),
+            st.sampled_from(
+                [
+                    # "none", # both operators should be associative
+                    "right",
+                    "left",
+                ]
+            ),
         ),
         name=st.one_of(st.none(), st.one_of(st.none(), st.text())),
         precedence=st.one_of(st.just(0), st.integers()),
@@ -113,8 +129,12 @@ def operator_strategy_from_symbol_strategy(
     operator_binary_strategy: st.SearchStrategy[Operator[_SymbolType]] = st.builds(
         Operator[_SymbolType],
         value=symbol_strategy,
-        associativity=st.one_of(
-            st.just("left"), st.sampled_from(["none", "right", "left"])
+        associativity=st.sampled_from(
+            [
+                # "none", # binary operators should be associative
+                "right",
+                "left",
+            ]
         ),
         name=st.one_of(st.none(), st.one_of(st.none(), st.text())),
         precedence=st.one_of(st.just(0), st.integers()),
@@ -274,8 +294,8 @@ def alternating_strategy(
 @st.composite
 def ops_and_tokens_strategy(
     draw: "st.DrawFn",
-    min_size=1,
-) -> Tuple[Sequence[Operator], List[Token],]:
+    min_size: int = 1,
+) -> Tuple[Sequence[Operator[Token]], List[Token],]:
     """Strategy to create an alternating sequence of ops and tokens.
 
     inspired by https://hypothesis.readthedocs.io/en/latest/data.html#composite-strategies
@@ -285,7 +305,7 @@ def ops_and_tokens_strategy(
         min_size (int, optional): Minimal length of the sequence. Defaults to 1.
 
     Returns:
-        Tuple[Sequence[Operator], List[Token],]: Alternating sequence of Tokens and Operators.
+        Tuple[Sequence[Operator[Token]], List[Token],]: Alternating sequence of Tokens and Operators.
     """
     _operator_symbols = draw(
         st.lists(
@@ -392,6 +412,280 @@ tokens: {_merged_value_tokens}
 """
     )
     return ops, _merged_value_tokens
+
+
+# Strategies for building a proper AST
+
+
+def operator_symbols_strategy(
+    blacklist_characters: Sequence[str] = "",
+) -> st.SearchStrategy[Set[Token]]:
+    """Create a Strategy for a set of token optionally excluding the  blacklisted symbols.
+
+    Args:
+        blacklist_characters (Sequence[str], optional): Characters not to use in creating tokens. Defaults to "".
+
+    Returns:
+        st.SearchStrategy[Set[Token]]: Strategy for drawing a set of tokens.
+    """
+    return st.sets(
+        elements=st.builds(
+            # cast("Callable[[str], Token]", Token),
+            lambda x: Token(x),
+            st.text(
+                alphabet=st.characters(
+                    blacklist_categories=BLACKLIST_CATEGORIES,
+                    blacklist_characters=blacklist_characters,
+                ),
+                min_size=1,
+            ),
+        ),
+        min_size=1,
+    ).filter(lambda _list: not any((a in b for a in _list for b in _list - {a})))
+
+
+# strategies for preventing use of the same symbol for a postfix AND either a prefix or binary operator
+
+unary_postfix_symbols_strategy: st.SearchStrategy[Set[Token]] = st.shared(
+    operator_symbols_strategy(), key="unary_postfix"
+)
+
+non_unary_postfix_symbols_strategy: st.SearchStrategy[Set[Token]] = st.shared(
+    unary_postfix_symbols_strategy.flatmap(
+        lambda symbols: operator_symbols_strategy(blacklist_characters="".join(symbols))
+    ),
+    key="non_unary_postfix",
+)
+
+
+@st.composite
+def non_operator_token_strategy(draw: st.DrawFn) -> Token:
+    """Create an token that is not use as an operator.
+
+    Args:
+        draw (st.DrawFn): Hypothesis Draw Function.
+
+    Returns:
+        Token: Token which is not used as an operator.
+    """
+    unary_postfix_symbols = draw(unary_postfix_symbols_strategy)
+    non_unary_postfix_symbols = draw(non_unary_postfix_symbols_strategy)
+    non_operator_tokens = draw(
+        st.shared(
+            operator_symbols_strategy(
+                blacklist_characters="".join(
+                    unary_postfix_symbols | non_unary_postfix_symbols
+                )
+            ),
+            key="non_operator_tokens",
+        )
+    )
+    return draw(st.sampled_from(list(non_operator_tokens)))
+
+
+operator_symbol_strategy: st.SearchStrategy[
+    Token
+] = operator_symbols_strategy().flatmap(
+    lambda operator_symbols: st.sampled_from(list(operator_symbols))
+)
+
+
+rpn_value_token_strategy: st.SearchStrategy[List[Token]] = st.deferred(
+    lambda: non_operator_token_strategy().map(lambda x: [x])
+)
+
+
+rpn_unary_operator_token_strategy: st.SearchStrategy[List[Token | None]] = st.one_of(
+    unary_postfix_symbols_strategy.flatmap(
+        lambda unary_postfix_symbols: st.sampled_from(list(unary_postfix_symbols))
+    ).map(lambda unary_postfix_symbol: [None, unary_postfix_symbol]),
+    non_unary_postfix_symbols_strategy.flatmap(
+        lambda non_unary_postfix_symbols: st.sampled_from(
+            list(non_unary_postfix_symbols)
+        )
+    ).map(lambda non_unary_postfix_symbol: [non_unary_postfix_symbol, None]),
+)
+
+
+def rpn_non_unary_operator_token_strategy(
+    arg_count: int,
+) -> st.SearchStrategy[List[Token | None]]:
+    """Create a strategy for the value of an RPNToken depending on the argument count.
+
+    Args:
+        arg_count (int): Number of arguments expected for the RPNToken, expected to be at least 2.
+
+    Returns:
+        st.SearchStrategy[List[Token | None]]: Value for the RPNToken
+    """
+    return st.lists(
+        elements=non_unary_postfix_symbols_strategy.flatmap(
+            lambda symbols: st.sampled_from(list(symbols))
+        ),  # operator_symbol_strategy,
+        min_size=arg_count - 1,
+        max_size=arg_count - 1,
+    ).flatmap(
+        lambda values: st.permutations(
+            values=[v for v in values] + [None for _ in range(len(values) + 1)]
+        )
+    )
+
+
+def rpn_operator_value_strategy(
+    arg_count: int,
+) -> st.SearchStrategy[List[Token | None]]:
+    """Create a strategy for the value of an RPNToken depending on the argument count.
+
+    Args:
+        arg_count (int): Number of arguments expected for the RPNToken.
+
+    Returns:
+        st.SearchStrategy[List[Token | None]]: Value for the RPNToken
+    """
+    return (
+        rpn_unary_operator_token_strategy
+        if arg_count == 1
+        else rpn_non_unary_operator_token_strategy(arg_count=arg_count)
+    )
+
+
+def rpn_token_from_arg_count_strategy(arg_count: int) -> st.SearchStrategy[RPNToken]:
+    """Create a strategy for an RPNToken depending on the argument count.
+
+    Args:
+        arg_count (int): Number of arguments expected for the RPNToken.
+
+    Returns:
+        st.SearchStrategy[RPNToken]: RPNToken
+    """
+    if arg_count == 0:
+        return rpn_value_token_strategy.map(
+            lambda values: RPNToken(
+                arg_count=arg_count,
+                values=cast("List[Token|None]", values),
+                precedence=0,
+                associativity="none",
+            )
+        )
+    elif arg_count == 1:
+        return rpn_unary_operator_token_strategy.flatmap(
+            lambda values: st.shared(
+                st.builds(
+                    lambda precedence: RPNToken(
+                        arg_count=1,
+                        associativity="none",
+                        values=values,
+                        precedence=precedence,
+                    ),
+                    precedence=st.integers(min_value=0),
+                ),
+                key=f"{values}",  # create each operator only once
+            )
+        )
+    elif arg_count == 2:
+        return rpn_non_unary_operator_token_strategy(arg_count=arg_count).flatmap(
+            lambda values: st.shared(
+                st.builds(
+                    lambda precedence, associativity: RPNToken(
+                        arg_count=arg_count,
+                        values=values,
+                        precedence=precedence,
+                        associativity=associativity,
+                    ),
+                    precedence=st.integers(min_value=0),
+                    associativity=st.sampled_from(["left", "right"]),
+                ),
+                key=f"{values}",  # create each operator only once
+            )
+        )
+    raise
+
+
+def rpn_tree_to_ops(node: RPNNode[RPNToken]) -> List[Operator[Token]]:
+    """Extract operators from an RPNNode.
+
+    Args:
+        node (RPNNode): Node / Tree to extract the operators from.
+
+    Returns:
+        List[Operator[Token]]: List of Operators used in the tree.
+    """
+    _ret: List[Operator[Token]] = []
+    if node.arg_count > 0:
+        _ret.append(
+            Operator[Token](
+                value=[_v for _v in node.value.values if _v is not None][0],
+                precedence=node.value.precedence,
+                unary=node.arg_count == 1,
+                unary_position=None
+                if node.arg_count != 1
+                else ("prefix" if node.value.values[0] is not None else "postfix"),
+                associativity="none"
+                if node.arg_count != 2
+                else node.value.associativity,
+            )
+        )
+        for child in node.children:
+            _ret.extend(rpn_tree_to_ops(child))
+
+    return _ret
+
+
+@st.composite
+def rpn_node_value_node_strategy(draw: st.DrawFn) -> RPNNode[RPNToken]:
+    """Create an RPNNode without children.
+
+    Args:
+        draw (st.DrawFn): Hypothesis Draw Function.
+
+    Returns:
+        RPNNode: RPNNode without children.
+    """
+    token = draw(rpn_token_from_arg_count_strategy(0))
+    children: List[RPNNode[RPNToken]] = []
+    return RPNNode[RPNToken](
+        arg_count=token.arg_count,
+        value=token,
+        children=children,
+    )
+
+
+@st.composite
+def rpn_operator_node_from_value_node_strategy(
+    draw: st.DrawFn,
+    elements: st.SearchStrategy[RPNNode[RPNToken]],
+) -> RPNNode[RPNToken]:
+    """Create an RPNNode with children.
+
+    Args:
+        draw (st.DrawFn): Hypothesis Draw Function.
+        elements (st.SearchStrategy[RPNNode]): Strategy to draw children from.
+
+    Returns:
+        RPNNode: RPNNode with children.
+    """
+    children = draw(st.lists(elements=elements, min_size=1, max_size=2))
+    token = draw(rpn_token_from_arg_count_strategy(len(children)))
+    _ops: List[Operator[Token]] = []
+    for child in children:
+        _ops.extend(rpn_tree_to_ops(child))
+    try:
+        sanity_check_operators(_ops)
+    except ValueError:
+        assume(False)
+
+    return RPNNode(
+        arg_count=len(children),
+        value=token,
+        children=children,
+    )
+
+
+rpn_node_strategy_recursive: st.SearchStrategy[RPNNode[RPNToken]] = st.recursive(
+    rpn_node_value_node_strategy(),
+    rpn_operator_node_from_value_node_strategy,
+    max_leaves=2,
+)
 
 
 def _hypothesis_setup_hook() -> None:  # pyright: ignore[reportUnusedFunction]

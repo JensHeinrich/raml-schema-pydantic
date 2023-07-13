@@ -9,6 +9,9 @@ from hypothesis import strategies as st
 from raml_schema_pydantic.types.type_expression._shunt import ClosingDelim
 from raml_schema_pydantic.types.type_expression._shunt import OpeningDelim
 from raml_schema_pydantic.types.type_expression._shunt import Token
+from raml_schema_pydantic.types.type_expression._shunt.hypothesis_strategies import (
+    MAX_ARGS,
+)
 from raml_schema_pydantic.types.type_expression._shunt.token_types import (
     _hypothesis_setup_hook,
 )
@@ -65,6 +68,7 @@ def test_fuzz_Operator(
 ) -> None:
     if unary:
         assume(unary_position is not None)
+        assume(associativity == "none")
     else:
         assume(unary_position is None)
     raml_schema_pydantic.types.type_expression._shunt.token_types.Operator(
@@ -73,5 +77,46 @@ def test_fuzz_Operator(
         precedence=precedence,
         unary=unary,
         unary_position=unary_position,
+        associativity=associativity,
+    )
+
+
+@given(
+    arg_count=st.shared(st.integers(min_value=0, max_value=MAX_ARGS), key="arg_count"),
+    values=st.shared(
+        st.integers(min_value=0, max_value=MAX_ARGS), key="arg_count"
+    ).flatmap(
+        lambda arg_count: st.lists(
+            st.builds(
+                Token,
+                st.text(
+                    alphabet=st.characters(blacklist_categories=("C", "Z")), min_size=1
+                ),
+            ),
+            min_size=max(
+                arg_count - 1, 1
+            ),  # ensure one value is created for value nodes
+            max_size=max(
+                arg_count - 1, 1
+            ),  # ensure one value is created for value nodes
+        ).map(
+            lambda _list: _list + [None for _ in range(arg_count)]
+        ),  # add placeholders
+    ),
+    precedence=st.integers(min_value=0),
+    associativity=st.sampled_from(["none", "right", "left"]),
+)
+def test_fuzz_RPNToken(
+    arg_count: int,
+    values: typing.List[
+        typing.Union[raml_schema_pydantic.types.type_expression._shunt.Token, None],
+    ],
+    precedence: int,
+    associativity,
+) -> None:
+    raml_schema_pydantic.types.type_expression._shunt.token_types.RPNToken(
+        arg_count=arg_count,
+        values=values,
+        precedence=precedence,
         associativity=associativity,
     )

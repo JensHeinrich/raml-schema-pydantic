@@ -74,6 +74,8 @@ repos:
     rev: "v1.4.0"
     hooks:
       - id: mypy
+        additional_dependencies:
+          - .
 
   # Source: https://medium.com/analytics-vidhya/essential-developer-tools-for-improving-your-python-code-71616254134b
   # Adapted for use with poetry
