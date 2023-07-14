@@ -10,10 +10,10 @@ from raml_schema_pydantic.types.type_expression._shunt import ClosingDelim
 from raml_schema_pydantic.types.type_expression._shunt import OpeningDelim
 from raml_schema_pydantic.types.type_expression._shunt import Token
 from raml_schema_pydantic.types.type_expression._shunt.hypothesis_strategies import (
-    MAX_ARGS,
-)
-from raml_schema_pydantic.types.type_expression._shunt.token_types import (
     _hypothesis_setup_hook,
+)
+from raml_schema_pydantic.types.type_expression._shunt.hypothesis_strategies import (
+    MAX_ARGS,
 )
 
 _hypothesis_setup_hook()

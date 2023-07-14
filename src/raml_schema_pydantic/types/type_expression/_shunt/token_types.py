@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from contextlib import suppress
 from typing import Any
 from typing import Generic
 from typing import List
@@ -19,12 +18,6 @@ from pydantic.generics import GenericModel
 
 from .exceptions import ListLengthError
 from .exceptions import NonMatchingPlaceholderCount
-
-HYPOTHESIS_AVAILABLE: bool = False
-with suppress(ImportError):
-    from hypothesis import strategies  # noqa [F401] # done to check for availability
-
-    HYPOTHESIS_AVAILABLE = True
 
 if TYPE_CHECKING:
     from pydantic.utils import GetterDict
@@ -99,15 +92,13 @@ class DelimPair(BaseModel):
     opening: OpeningDelim
     closing: ClosingDelim
 
-    if HYPOTHESIS_AVAILABLE:
-        # make type hashable for hypothesis
-        def __hash__(self) -> int:
-            """Create a hash of the object for use in dictionaries.
+    def __hash__(self) -> int:
+        """Create a hash of the object for use in dictionaries.
 
-            Returns:
-                int: hash for looking up the object
-            """
-            return self.opening.__hash__() + self.closing.__hash__()
+        Returns:
+            int: hash for looking up the object
+        """
+        return self.opening.__hash__() + self.closing.__hash__()
 
 
 _SymbolType = TypeVar("_SymbolType", bound=Token)
@@ -203,15 +194,13 @@ class Operator(GenericModel, Generic[_SymbolType]):
             ")"
         )
 
-    if HYPOTHESIS_AVAILABLE:
-        # make type hashable for hypothesis
-        def __hash__(self) -> int:
-            """Create a hash of the object for use in dictionaries.
+    def __hash__(self) -> int:
+        """Create a hash of the object for use in dictionaries.
 
-            Returns:
-                int: hash for looking up the object
-            """
-            return self.value.__hash__()
+        Returns:
+            int: hash for looking up the object
+        """
+        return self.value.__hash__()
 
 
 _OperatorType = TypeVar("_OperatorType", bound=Operator)
@@ -333,9 +322,3 @@ __all__ = (
     "Token",
     "RPNToken",
 )
-
-
-if HYPOTHESIS_AVAILABLE:
-    from .hypothesis_strategies import _hypothesis_setup_hook
-
-    _hypothesis_setup_hook()
